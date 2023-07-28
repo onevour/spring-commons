@@ -13,7 +13,6 @@ import java.lang.reflect.Field;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@SuppressWarnings("ALL")
 @Getter
 public class ApiRequest {
 
@@ -29,11 +28,13 @@ public class ApiRequest {
     private Object request;
 
     // expect response
+    @SuppressWarnings("rawtypes")
     @Getter(AccessLevel.NONE)
     private ParameterizedTypeReference parameterizedResponse;
 
     // expect response
 
+    @SuppressWarnings("rawtypes")
     @Getter(AccessLevel.NONE)
     private Class clazzResponse;
 
@@ -72,7 +73,7 @@ public class ApiRequest {
     @Slf4j
     public static class Builder {
 
-        private HttpHeaders headers = new HttpHeaders();
+        private final HttpHeaders headers = new HttpHeaders();
 
         private final Map<String, String> header = new HashMap<>();
 
@@ -87,7 +88,7 @@ public class ApiRequest {
 
         private boolean requestObjectForGet;
 
-        private Set<Integer> allowForCode = new HashSet<>();
+        private final Set<Integer> allowForCode = new HashSet<>();
 
         // body for delete only
         private final Map<String, Object> requestGetTemp = new HashMap<>();
