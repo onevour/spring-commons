@@ -1,7 +1,6 @@
 package com.onevour.core.applications.base;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 
 import javax.persistence.criteria.CriteriaBuilder;
 import javax.persistence.criteria.Root;
@@ -12,10 +11,9 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Component
 public class BaseSpec {
 
-    protected static boolean hasNull(Object... values) {
+    public boolean hasNull(Object... values) {
         for (Object o : values) {
             if (Objects.isNull(o)) return true;
             if (o instanceof String) {
@@ -26,7 +24,7 @@ public class BaseSpec {
         return false;
     }
 
-    protected static boolean hasNotNull(Object... values) {
+    public boolean hasNotNull(Object... values) {
         for (Object o : values) {
             if (Objects.isNull(o)) return false;
             if (o instanceof String) {
@@ -37,7 +35,7 @@ public class BaseSpec {
         return true;
     }
 
-    protected static String paramLike(String value) {
+    public String paramLike(String value) {
         StringBuilder sb = new StringBuilder();
         sb.append("%");
         sb.append(Objects.isNull(value) ? "" : value);
@@ -45,7 +43,7 @@ public class BaseSpec {
         return sb.toString();
     }
 
-    protected static String paramStartWith(String value) {
+    public String paramStartWith(String value) {
         StringBuilder sb = new StringBuilder();
         // sb.append("%");
         sb.append(Objects.isNull(value) ? "" : value);
@@ -53,7 +51,7 @@ public class BaseSpec {
         return sb.toString();
     }
 
-    protected static String paramEndWith(String value) {
+    public String paramEndWith(String value) {
         StringBuilder sb = new StringBuilder();
         sb.append("%");
         sb.append(Objects.isNull(value) ? "" : value);
@@ -61,17 +59,17 @@ public class BaseSpec {
         return sb.toString();
     }
 
-    protected static boolean isGTZero(Integer value) {
+    public boolean isGTZero(Integer value) {
         if (Objects.isNull(value)) return false;
         return value > 0;
     }
 
-    protected static boolean isGTEqZero(Integer value) {
+    public boolean isGTEqZero(Integer value) {
         if (Objects.isNull(value)) return false;
         return value >= 0;
     }
 
-    protected static boolean isGTZero(Long value) {
+    public boolean isGTZero(Long value) {
         if (Objects.isNull(value)) return false;
         return value > 0;
     }
@@ -88,11 +86,11 @@ public class BaseSpec {
 
     }
 
-    protected <T> List<javax.persistence.criteria.Predicate> notDeleted(Root<T> root, CriteriaBuilder criteriaBuilder) {
-        List<javax.persistence.criteria.Predicate> predicateList = new ArrayList<>();
-        javax.persistence.criteria.Predicate productNotDeleted = criteriaBuilder.equal(root.get("deleted"), false);
-        predicateList.add(productNotDeleted);
-        return predicateList;
-    }
+//    protected <T> List<javax.persistence.criteria.Predicate> notDeleted(Root<T> root, CriteriaBuilder criteriaBuilder) {
+//        List<javax.persistence.criteria.Predicate> predicateList = new ArrayList<>();
+//        javax.persistence.criteria.Predicate productNotDeleted = criteriaBuilder.equal(root.get("deleted"), false);
+//        predicateList.add(productNotDeleted);
+//        return predicateList;
+//    }
 
 }
