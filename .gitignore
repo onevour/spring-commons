@@ -46,3 +46,5 @@ out/
 /uploads/*
 /logDir_IS_UNDEFINED/
 /output/
+
+gradle.properties
