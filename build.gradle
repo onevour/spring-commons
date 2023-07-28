@@ -6,7 +6,7 @@ plugins {
 }
 
 group = 'com.onevour.core'
-version = '0.0.1.1-ALPHA'
+version = '0.0.1.2-ALPHA'
 
 java {
 	sourceCompatibility = '1.8'

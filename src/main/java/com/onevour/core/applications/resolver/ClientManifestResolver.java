@@ -9,6 +9,8 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 @Slf4j
@@ -16,8 +18,8 @@ public class ClientManifestResolver implements HandlerMethodArgumentResolver {
 
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
-        log.debug(parameter.getParameterType().getName());
-        return parameter.getParameterType().equals(ClientManifest.class);
+        List<Class<?>> interfaces = Arrays.asList(parameter.getParameterType().getInterfaces());
+        return interfaces.contains(ClientManifest.class);
     }
 
     @Override
@@ -32,12 +34,11 @@ public class ClientManifestResolver implements HandlerMethodArgumentResolver {
             log.debug("get no sig value exist!");
             return null;
         }
-        if (!(value instanceof ClientManifest)) {
-            log.debug("get no sig value exist!");
-            return null;
+        if (supportsParameter(parameter)) {
+            log.debug("return value session");
+            return value;
         }
-        log.debug("return value session");
-        return value;
+        return null;
     }
 
 }
