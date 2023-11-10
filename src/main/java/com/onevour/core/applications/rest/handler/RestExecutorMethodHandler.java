@@ -15,8 +15,7 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+
 import java.lang.reflect.Method;
 import java.util.Objects;
 import java.util.Optional;
@@ -31,9 +30,9 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
 
     }
 
-    @Nullable
+
     @Override
-    public Object invoke(@Nonnull MethodInvocation invocation) throws Throwable {
+    public Object invoke(MethodInvocation invocation) throws Throwable {
         Method method = invocation.getMethod();
 
 //        RestConfig config = invocation.getClass().getAnnotation(RestConfig.class);
