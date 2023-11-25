@@ -1,6 +1,5 @@
 package com.onevour.core.applications.rest.services;
 
-import com.onevour.core.applications.rest.annotations.BasePathConfig;
 import com.onevour.core.applications.rest.annotations.Get;
 import com.onevour.core.applications.rest.annotations.Post;
 import com.onevour.core.applications.rest.repository.RestRepository;
@@ -12,7 +11,6 @@ import java.util.List;
 
 public interface AuthRepository extends RestRepository {
 
-    @BasePathConfig
     @Get(url = "https://baconipsum.com/api") //
     List<String> auth(BodyRequest request);
 

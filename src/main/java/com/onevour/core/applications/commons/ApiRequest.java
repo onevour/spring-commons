@@ -10,6 +10,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -73,7 +76,7 @@ public class ApiRequest {
     @Slf4j
     public static class Builder {
 
-        private final HttpHeaders headers = new HttpHeaders();
+        private HttpHeaders headers = new HttpHeaders();
 
         private final Map<String, String> header = new HashMap<>();
 
@@ -99,6 +102,9 @@ public class ApiRequest {
         // expect response
         private Class<?> clazzResponse;
 
+        public Builder() {
+
+        }
 
         public Builder(Class<?> clazzResponse) {
             this.clazzResponse = clazzResponse;
@@ -106,6 +112,38 @@ public class ApiRequest {
 
         public Builder(ParameterizedTypeReference<?> parameterized) {
             this.parameterized = parameterized;
+        }
+
+        public Builder(Method method) {
+            boolean isParameterized = isParameterizedTypeReference(method.getGenericReturnType());
+            if (isParameterized) {
+                this.parameterized = parameterized(method.getGenericReturnType());
+            } else {
+                this.clazzResponse = method.getReturnType();
+            }
+        }
+
+        private <T> ParameterizedTypeReference<T> parameterized(Type type) {
+            return new ParameterizedTypeReference<T>() {
+                @SuppressWarnings("NullableProblems")
+                @Override
+                public Type getType() {
+                    return type;
+                }
+            };
+        }
+
+        private boolean isParameterizedTypeReference(Type genericReturnType) {
+
+            if (genericReturnType instanceof ParameterizedType) {
+                ParameterizedType parameterizedType = (ParameterizedType) genericReturnType;
+                Type[] typeArguments = parameterizedType.getActualTypeArguments();
+                for (Type typeArgument : typeArguments) {
+                    System.out.println("Type Argument: " + typeArgument);
+                }
+                return typeArguments.length > 0;
+            }
+            return false;
         }
 
         public Builder setUrl(String... segments) {
@@ -124,9 +162,13 @@ public class ApiRequest {
             return this;
         }
 
-
         public Builder setRequest(Object request) {
             this.request = request;
+            return this;
+        }
+
+        public Builder setHeaders(HttpHeaders headers) {
+            this.headers = headers;
             return this;
         }
 
