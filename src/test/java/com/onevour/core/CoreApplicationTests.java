@@ -26,6 +26,7 @@ class CoreApplicationTests {
         ResponseWrapper<BaseResponse<AuthResponse>> response = authRestRepository.login(new LoginRequest("jakarta@binda.id", "masuk123"));
         response.isErrorAndThrow(BadGatewayException::new, 401);
         log.info("result is {}, {}, {}", response.getCode(), response.getMessage(), response.getBody());
+
     }
 
 }

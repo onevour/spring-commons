@@ -174,7 +174,7 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
             url.setLength(0);
             url.append(urlEnv);
             url.append(annotationURL);
-            log.info("key {} value {}", key, urlEnv);
+            log.debug("key {} value {}", key, urlEnv);
         } else {
             boolean exist = !beanFactory.getBeansOfType(RestConfigBaseKey.class).isEmpty();
             if (exist) {
@@ -249,14 +249,14 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
         boolean isParameterize = Objects.nonNull(type);
         boolean isRestResultParameterize = false;
         if (isParameterize) {
-            log.info("type name {} and class is {} return type {}", type.getTypeName(), type.getClass(), method.getReturnType());
+            log.debug("type name {} and class is {} return type {}", type.getTypeName(), type.getClass(), method.getReturnType());
             Class<?> clazz = method.getReturnType();
             if (clazz.equals(ResponseWrapper.class)) {
-                log.info("response type parameterized equals RestResult {}", type);
+                log.debug("response type parameterized equals RestResult {}", type);
                 // get type parameterize index 1
                 Type typeChild = ReflectionCommons.getGenericParameterType(type, 0);
                 // this.parameterized = ReflectionCommons.parameterized(typeChild);
-                log.info("index 0 {}", typeChild);
+                log.debug("index 0 {}", typeChild);
                 typeReference = new ParameterizedTypeReference<Class>() {
                     @Override
                     public Type getType() {
@@ -291,7 +291,7 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
                 }
             }
             if (isRestResultParameterize) {
-                log.info("response with RestResult");
+                log.debug("response with ResponseWrapper");
                 return new ResponseWrapper<>(response);
             }
             if (Objects.isNull(response)) return null;
