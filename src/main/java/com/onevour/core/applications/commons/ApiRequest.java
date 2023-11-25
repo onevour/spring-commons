@@ -11,11 +11,12 @@ import org.springframework.http.HttpMethod;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@Slf4j
+@SuppressWarnings("ALL")
 @Getter
 public class ApiRequest {
 
@@ -115,36 +116,17 @@ public class ApiRequest {
         }
 
         public Builder(Method method) {
-            boolean isParameterized = isParameterizedTypeReference(method.getGenericReturnType());
+            // is resolver
+            Type type = method.getGenericReturnType();
+            boolean isParameterized = ReflectionCommons.isParameterizedTypeReference(type);
             if (isParameterized) {
-                this.parameterized = parameterized(method.getGenericReturnType());
+                this.parameterized = ReflectionCommons.parameterized(type);
             } else {
                 this.clazzResponse = method.getReturnType();
+                log.info("response type class {}", this.clazzResponse);
             }
         }
 
-        private <T> ParameterizedTypeReference<T> parameterized(Type type) {
-            return new ParameterizedTypeReference<T>() {
-                @SuppressWarnings("NullableProblems")
-                @Override
-                public Type getType() {
-                    return type;
-                }
-            };
-        }
-
-        private boolean isParameterizedTypeReference(Type genericReturnType) {
-
-            if (genericReturnType instanceof ParameterizedType) {
-                ParameterizedType parameterizedType = (ParameterizedType) genericReturnType;
-                Type[] typeArguments = parameterizedType.getActualTypeArguments();
-                for (Type typeArgument : typeArguments) {
-                    System.out.println("Type Argument: " + typeArgument);
-                }
-                return typeArguments.length > 0;
-            }
-            return false;
-        }
 
         public Builder setUrl(String... segments) {
             StringBuilder sb = new StringBuilder();

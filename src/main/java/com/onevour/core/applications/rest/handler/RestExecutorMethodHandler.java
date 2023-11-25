@@ -1,18 +1,20 @@
 package com.onevour.core.applications.rest.handler;
 
 
-
 import com.onevour.core.applications.commons.ApiRequest;
+import com.onevour.core.applications.commons.ReflectionCommons;
 import com.onevour.core.applications.exceptions.BadGatewayException;
 import com.onevour.core.applications.rest.annotations.*;
-import com.onevour.core.applications.rest.configuration.RestConfigBaseKey;
 import com.onevour.core.applications.rest.exceptions.HttpMethodNotFoundException;
+import com.onevour.core.applications.rest.model.RestConfigBaseKey;
+import com.onevour.core.applications.rest.model.ResponseWrapper;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -25,7 +27,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
+import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -111,35 +113,35 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
         String url = baseURL(annotation.key(), annotation.url());
         String contentType = annotation.contentType();
         ApiRequest.Builder builder = builderHttpMethod(method, args, url, contentType);
-        return requestData(builder.buildGet());
+        return requestData(method, builder.buildGet());
     }
 
     private Object handleTransactionalMethod(Patch annotation, Method method, Object[] args) {
         String url = baseURL(annotation.key(), annotation.url());
         String contentType = annotation.contentType();
         ApiRequest.Builder builder = builderHttpMethod(method, args, url, contentType);
-        return requestData(builder.buildPatch());
+        return requestData(method, builder.buildPatch());
     }
 
     private Object handleTransactionalMethod(Put annotation, Method method, Object[] args) {
         String url = baseURL(annotation.key(), annotation.url());
         String contentType = annotation.contentType();
         ApiRequest.Builder builder = builderHttpMethod(method, args, url, contentType);
-        return requestData(builder.buildPut());
+        return requestData(method, builder.buildPut());
     }
 
     private Object handleTransactionalMethod(Delete annotation, Method method, Object[] args) {
         String url = baseURL(annotation.key(), annotation.url());
         String contentType = annotation.contentType();
         ApiRequest.Builder builder = builderHttpMethod(method, args, url, contentType);
-        return requestData(builder.buildDelete());
+        return requestData(method, builder.buildDelete());
     }
 
     private Object handleTransactionalMethod(Post annotation, Method method, Object[] args) {
         String url = baseURL(annotation.key(), annotation.url());
         String contentType = annotation.contentType();
         ApiRequest.Builder builder = builderHttpMethod(method, args, url, contentType);
-        return requestData(builder.buildPost());
+        return requestData(method, builder.buildPost());
     }
 
     // END HANDLE METHOD by annotation
@@ -234,48 +236,75 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
         return value.trim();
     }
 
+
     // END UTIL METHOD
 
     // --------------------------------------------------------------------------------------------------
 
-    protected <T> T requestData(ApiRequest request) {
+    @SuppressWarnings("rawtypes")
+    protected Object requestData(Method method, ApiRequest request) {
+        //
+        Type type = ReflectionCommons.typeOf(request.getParameterizedResponse());
+        ParameterizedTypeReference typeReference = null;
+        boolean isParameterize = Objects.nonNull(type);
+        boolean isRestResultParameterize = false;
+        if (isParameterize) {
+            log.info("type name {} and class is {} return type {}", type.getTypeName(), type.getClass(), method.getReturnType());
+            Class<?> clazz = method.getReturnType();
+            if (clazz.equals(ResponseWrapper.class)) {
+                log.info("response type parameterized equals RestResult {}", type);
+                // get type parameterize index 1
+                Type typeChild = ReflectionCommons.getGenericParameterType(type, 0);
+                // this.parameterized = ReflectionCommons.parameterized(typeChild);
+                log.info("index 0 {}", typeChild);
+                typeReference = new ParameterizedTypeReference<Class>() {
+                    @Override
+                    public Type getType() {
+                        return typeChild;
+                    }
+                };
+                isRestResultParameterize = true;
+            }
+        }
+        //
         try {
             boolean exist = beanFactory.getBeansOfType(RestTemplate.class).isEmpty();
             RestTemplate restTemplate = exist ? beanFactory.getBean(RestTemplate.class) : new RestTemplate();
             log.debug("http request {} {}", request.getMethod(), request.getUrl());
             request.validate();
-            ResponseEntity<T> response = null;
+            ResponseEntity<?> response = null;
             if (HttpMethod.GET == request.getMethod()) {
                 if (Objects.isNull(request.getClassResponse())) {
-                    response = restTemplate.exchange(request.getUrl(), HttpMethod.GET, new HttpEntity<>(request.getHeaders()), request.getParameterizedResponse());
+                    ParameterizedTypeReference<?> ref = Objects.nonNull(typeReference) ? typeReference : request.getParameterizedResponse();
+                    response = restTemplate.exchange(request.getUrl(), HttpMethod.GET, new HttpEntity<>(request.getHeaders()), ref);
                 }
                 if (Objects.isNull(request.getParameterizedResponse())) {
                     response = restTemplate.exchange(request.getUrl(), HttpMethod.GET, new HttpEntity<>(request.getHeaders()), request.getClassResponse());
                 }
             } else {
                 if (Objects.isNull(request.getClassResponse())) {
-                    response = restTemplate.exchange(request.getUrl(), request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), request.getParameterizedResponse());
+                    ParameterizedTypeReference<?> ref = Objects.nonNull(typeReference) ? typeReference : request.getParameterizedResponse();
+                    response = restTemplate.exchange(request.getUrl(), request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), ref);
                 }
                 if (Objects.isNull(request.getParameterizedResponse())) {
                     response = restTemplate.exchange(request.getUrl(), request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), request.getClassResponse());
                 }
             }
+            if (isRestResultParameterize) {
+                log.info("response with RestResult");
+                return new ResponseWrapper<>(response);
+            }
             if (Objects.isNull(response)) return null;
             return response.getBody();
+
         } catch (HttpStatusCodeException e) {
-            int code = e.getRawStatusCode();
-            String body = e.getResponseBodyAsString(StandardCharsets.UTF_8);
-            log.error("error response http code {} body {}", code, body);
-            if (request.getAllowForCode().contains(code)) {
-                log.error("allow for code {}", code);
-//                return null;
-            }
+            if (isRestResultParameterize) return new ResponseWrapper<>(e);
+            log.error("error code {}, {}", e.getStatusCode(), e.getStatusText());
             throw e;
         } catch (ResourceAccessException e) {
             log.error("error access external {}", e.getMessage());
             throw new BadGatewayException();
         }
     }
-
 
 }

@@ -1,4 +1,4 @@
-package com.onevour.core.applications.rest.sample;
+package com.onevour.core.sample.rest;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -26,7 +26,7 @@ public class AuthResponse {
     // @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class), response is camelcase
     @AllArgsConstructor
     @NoArgsConstructor
-    public static class AuthUserResponse {
+    public class AuthUserResponse {
 
         String id;
 

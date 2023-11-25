@@ -1,4 +1,4 @@
-package com.onevour.core.applications.rest.sample;
+package com.onevour.core.sample.rest;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;

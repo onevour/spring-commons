@@ -1,7 +1,6 @@
 package com.onevour.core.applications.rest.configuration;
 
-
-import com.asliri.core.applications.rest.repository.RestRepository;
+import com.onevour.core.applications.rest.repository.RestRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
@@ -18,9 +17,10 @@ public class RestBeanRegistry extends BasicRestBuilder implements BeanFactoryPos
     public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
         Set<Class<?>> classes = getAllInterfaces(RestRepository.class);
         for (Class<?> c : classes) {
-            Object o = createProxyBean(c,  beanFactory);
+            Object o = createProxyBean(c, beanFactory);
             beanFactory.registerSingleton(variableName(c.getSimpleName()), o);
             beanFactory.autowireBean(o);
         }
     }
+
 }

@@ -1,6 +1,6 @@
 package com.onevour.core.applications.rest.configuration;
 
-import com.asliri.core.applications.rest.handler.RestExecutorMethodHandler;
+import com.onevour.core.applications.rest.handler.RestExecutorMethodHandler;
 import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.core.io.Resource;
