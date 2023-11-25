@@ -1,5 +1,6 @@
 package com.onevour.core.applications.commons;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 
 import java.lang.reflect.GenericArrayType;
@@ -7,6 +8,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Objects;
 
+@Slf4j
 public class ReflectionCommons {
 
     public static boolean isParameterizedTypeReference(Type genericReturnType) {
@@ -15,7 +17,7 @@ public class ReflectionCommons {
             ParameterizedType parameterizedType = (ParameterizedType) genericReturnType;
             Type[] typeArguments = parameterizedType.getActualTypeArguments();
             for (Type typeArgument : typeArguments) {
-                System.out.println("Type Argument: " + typeArgument);
+                log.debug("Type Argument: {}", typeArgument);
             }
             return typeArguments.length > 0;
         }
@@ -43,6 +45,7 @@ public class ReflectionCommons {
         return genericParameterTypeList[index];
     }
 
+    @SuppressWarnings("RedundantClassCall")
     public static Type[] getGenericParameterTypes(Type type) {
         if (ParameterizedType.class.isInstance(type)) {
             final ParameterizedType paramType = ParameterizedType.class.cast(type);
@@ -59,4 +62,5 @@ public class ReflectionCommons {
         if (Objects.isNull(parameterized)) return null;
         return parameterized.getType();
     }
+
 }

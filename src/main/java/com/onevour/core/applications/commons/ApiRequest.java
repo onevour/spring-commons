@@ -16,8 +16,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
-@SuppressWarnings("ALL")
 @Getter
+@SuppressWarnings({"ALL", "unchecked"})
 public class ApiRequest {
 
     private HttpHeaders headers;
