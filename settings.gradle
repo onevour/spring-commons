@@ -1,1 +1,4 @@
 rootProject.name = 'spring-sdk'
+include 'spring-common'
+include 'spring-test'
+

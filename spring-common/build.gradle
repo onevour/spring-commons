@@ -1,0 +1,65 @@
+plugins {
+    id 'org.springframework.boot' version '2.7.17' apply false
+    id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'com.onevour.core'
+version = '0.0.1'
+
+java {
+    sourceCompatibility = "1.8"
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencyManagement {
+    imports {
+        mavenBom org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES
+    }
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/onevour/spring-commons")
+            credentials {
+                username = project.findProperty("user") ?: System.getenv("USERNAME")
+                password = project.findProperty("token") ?: System.getenv("TOKEN")
+            }
+        }
+    }
+    publications {
+        gpr(MavenPublication) {
+            from(components.java)
+        }
+    }
+}
+
+dependencies {
+    api 'org.springframework.boot:spring-boot-starter'
+    api 'org.springframework.boot:spring-boot-starter-web'
+    api 'org.springframework.boot:spring-boot-starter-data-jpa'
+    api 'org.springframework.boot:spring-boot-starter-validation'
+    api 'commons-io:commons-io:2.14.0'
+    api 'joda-time:joda-time:2.12.5'
+    api 'org.apache.commons:commons-lang3:3.12.0'
+    api 'org.apache.httpcomponents:httpclient:4.5.13'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+test {
+    useJUnitPlatform()
+}

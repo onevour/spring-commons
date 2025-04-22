@@ -1,64 +1,53 @@
 plugins {
-	id 'org.springframework.boot' version '2.7.14' apply false
-	id 'io.spring.dependency-management' version '1.0.15.RELEASE'
-	id 'java-library'
-	id 'maven-publish'
+    id 'org.springframework.boot' version '2.7.17' apply false
+    id 'io.spring.dependency-management' version '1.0.15.RELEASE'
 }
 
-group = 'com.onevour.core'
-version = '0.0.0.1-ALPHA'
+ext.versions = [
+        springBoot: '2.7.7',
+]
 
-java {
-	sourceCompatibility = '1.8'
+allprojects {
+    apply plugin: 'io.spring.dependency-management'
+    group 'com.onevour.core'
+
+    dependencyManagement {
+        dependencies {
+            dependency 'org.projectlombok:lombok:1.18.2'
+        }
+    }
 }
 
-configurations {
-	compileOnly {
-		extendsFrom annotationProcessor
-	}
-}
+subprojects {
+    apply plugin: 'java'
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(11)
+        }
+        withSourcesJar()
+    }
 
-repositories {
-	mavenCentral()
-}
+    dependencies {
+//        implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+    }
 
-dependencyManagement {
-	imports {
-		mavenBom org.springframework.boot.gradle.plugin.SpringBootPlugin.BOM_COORDINATES
-	}
-}
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://repo.spring.io/snapshot" }
+        maven { url "https://repo.spring.io/milestone" }
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/onevour/spring-commons")
+            credentials {
+                username = project.findProperty("user") ?: System.getenv("USERNAME")
+                password = project.findProperty("token") ?: System.getenv("TOKEN")
+            }
+        }
+    }
 
-publishing {
-	repositories {
-		maven {
-			name = "GitHubPackages"
-			url = uri("https://maven.pkg.github.com/onevour/spring-commons")
-			credentials {
-				username = project.findProperty("user") ?: System.getenv("USERNAME")
-				password = project.findProperty("token") ?: System.getenv("TOKEN")
-			}
-		}
-	}
-	publications {
-		gpr(MavenPublication) {
-			from(components.java)
-		}
-	}
-}
+    test {
+        useJUnitPlatform()
+    }
 
-dependencies {
-	api 'org.springframework.boot:spring-boot-starter'
-	api 'org.springframework.boot:spring-boot-starter-web'
-	api 'org.springframework.boot:spring-boot-starter-data-jpa'
-	api 'org.springframework.boot:spring-boot-starter-validation'
-	api 'commons-io:commons-io:2.11.0'
-	api 'joda-time:joda-time:2.12.5'
-	api 'org.apache.commons:commons-lang3:3.12.0'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-}
-
-tasks.named('test') {
-	useJUnitPlatform()
 }
