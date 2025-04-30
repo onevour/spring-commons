@@ -1,6 +1,8 @@
 package com.onevour.core;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -16,6 +18,12 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
 })
 public class CoreApplicationNoDatasource implements CommandLineRunner {
 
+    @Autowired
+    ObjectMapper mapper;
+
+    @Autowired
+    PokemonRestRepository pokemonRestRepository;
+
     public static void main(String[] args) {
         SpringApplication.run(CoreApplicationNoDatasource.class, args);
     }
@@ -23,6 +31,8 @@ public class CoreApplicationNoDatasource implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         log.info("test running");
+        Object response = pokemonRestRepository.call();
+        log.info("response\n{}", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(response));
     }
 
 }

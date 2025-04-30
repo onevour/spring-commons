@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
-import javax.xml.bind.DatatypeConverter;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.*;
@@ -119,7 +118,7 @@ public class ImageCommons {
 
     public static String resizeImage(String original) {
         try {
-            byte[] data = DatatypeConverter.parseBase64Binary(original);
+            byte[] data = Base64.getDecoder().decode(original);
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(data));
             BufferedImage resized = cropCenter(image);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -135,7 +134,7 @@ public class ImageCommons {
 
     public static String resizeImagePassPhoto(String original) {
         try {
-            byte[] data = DatatypeConverter.parseBase64Binary(original);
+            byte[] data = Base64.getDecoder().decode(original);
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(data));
             BufferedImage resized = cropPassPhoto(image);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();

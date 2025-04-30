@@ -1,11 +1,7 @@
 plugins {
-    id 'org.springframework.boot' version '2.7.17' apply false
-    id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+    id 'org.springframework.boot' version '3.4.5' apply false
+    id 'io.spring.dependency-management' version '1.1.7'
 }
-
-ext.versions = [
-        springBoot: '2.7.7',
-]
 
 allprojects {
     apply plugin: 'io.spring.dependency-management'
@@ -13,7 +9,7 @@ allprojects {
 
     dependencyManagement {
         dependencies {
-            dependency 'org.projectlombok:lombok:1.18.2'
+            // dependency 'org.projectlombok:lombok:1.18.2'
         }
     }
 }
@@ -22,13 +18,9 @@ subprojects {
     apply plugin: 'java'
     java {
         toolchain {
-            languageVersion = JavaLanguageVersion.of(11)
+            languageVersion = JavaLanguageVersion.of(17)
         }
         withSourcesJar()
-    }
-
-    dependencies {
-//        implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
     }
 
     repositories {
@@ -44,6 +36,11 @@ subprojects {
                 password = project.findProperty("token") ?: System.getenv("TOKEN")
             }
         }
+    }
+
+    dependencies {
+        compileOnly 'org.projectlombok:lombok:1.18.38'
+        annotationProcessor 'org.projectlombok:lombok:1.18.38'
     }
 
     test {
