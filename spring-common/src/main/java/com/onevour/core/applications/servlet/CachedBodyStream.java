@@ -2,8 +2,8 @@ package com.onevour.core.applications.servlet;
 
 import lombok.extern.slf4j.Slf4j;
 
-import jakarta.servlet.ReadListener;
-import jakarta.servlet.ServletInputStream;
+import javax.servlet.ReadListener;
+import javax.servlet.ServletInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;

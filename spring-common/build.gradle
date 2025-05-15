@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.onevour.core'
-version = '3.0.1'
+version = '2.0.1'
 
 configurations {
     compileOnly {
@@ -49,7 +49,7 @@ dependencies {
     api 'commons-io:commons-io:2.19.0'
     api 'joda-time:joda-time:2.14.0'
     api 'org.apache.commons:commons-lang3:3.17.0'
-    api 'org.apache.httpcomponents.client5:httpclient5:5.2.1'
+    api 'org.apache.httpcomponents:httpclient:4.5.13'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
