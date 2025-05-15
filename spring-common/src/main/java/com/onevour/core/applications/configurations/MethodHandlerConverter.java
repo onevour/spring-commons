@@ -31,12 +31,12 @@ public class MethodHandlerConverter {
     public Object producerConverter(ProceedingJoinPoint joinPoint) throws Throwable {
         Method method = getMethodFromJoinPoint(joinPoint);
         if (Objects.isNull(method)) {
-            return null;
+            return joinPoint.proceed();
         }
         Object[] arguments = joinPoint.getArgs();
         Annotation[][] parameterAnnotations = method.getParameterAnnotations();
         int sizeAnnotation = parameterAnnotations.length;
-        if (sizeAnnotation == 0) return null;
+        if (sizeAnnotation == 0) return joinPoint.proceed();
         for (int index = 0; index < sizeAnnotation; index++) {
             updateBeanConverter(arguments, parameterAnnotations[index], index);
         }
