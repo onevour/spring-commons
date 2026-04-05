@@ -34,20 +34,16 @@ publishing {
     publications {
         gpr(MavenPublication) {
             from(components.java)
-            // ⬇⬇⬇ INI WAJIB karena semua dependecy gak ada versinya, ambil dari root ⬇⬇⬇
-            versionMapping {
-                usage("java-api") {
-                    fromResolutionResult()
-                }
-                usage("java-runtime") {
-                    fromResolutionResult()
-                }
-            }
         }
     }
 }
 
 dependencies {
+    api platform("org.springframework.boot:spring-boot-dependencies:${versions.springBoot}")
+    constraints {
+        api 'org.projectlombok:lombok:1.18.2'
+        annotationProcessor 'org.projectlombok:lombok:1.18.2'
+    }
     api "org.slf4j:slf4j-api"
     // === JPA API (javax, Boot 2.x) ===
     api "javax.persistence:javax.persistence-api"
