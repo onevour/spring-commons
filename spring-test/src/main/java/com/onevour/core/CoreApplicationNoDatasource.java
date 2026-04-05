@@ -1,9 +1,9 @@
 package com.onevour.core;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onevour.core.applications.commons.StopWatch;
 import com.onevour.core.repository.rest.HttpBinRestRepository;
 import com.onevour.core.repository.rest.PokemonRestRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -13,11 +13,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 @Slf4j
-//@SpringBootApplication(exclude = {
-//        DataSourceAutoConfiguration.class,
-//        DataSourceTransactionManagerAutoConfiguration.class,
-//        HibernateJpaAutoConfiguration.class
-//})
 @SpringBootApplication
 public class CoreApplicationNoDatasource implements CommandLineRunner {
 
