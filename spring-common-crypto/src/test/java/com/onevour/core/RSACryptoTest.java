@@ -48,11 +48,10 @@ class RSACryptoTest {
     @Test
     void test_rsa_encrypt_decrypt_v3_ecb_block_chiper() throws Exception {
         String privateKey = null;
-//        String publicKey = fileToBase64("/keypair/public.key");
-        String publicKey = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDjsNVcqK9y5UedRJySABHf5LlLWeFaFnTUcHNM+5IV404hpkqAPwKU2yCbYwy6yIPTZEv7cCh4EDPBzhzMhlDpWLMZhI5PMoqWVy9/I/EysiiwUehZwkExCf/KHuMuM89PuLL4APD/1IeyFgyG4MQg5LuxCo3GjebgAhbhIPir3wIDAQAB";
+        String publicKey = "";
         RSACryptoKeyLoader adapter = new RSAKeyBase64Loader(privateKey, publicKey);
         RSACrypto rsaCrypto = new RSACrypto("RSA/ECB/PKCS1Padding", adapter);
-        String plainText = "{\"pub_key\":\"MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCo/wwm3YehVJSY8w6Hg80VHHjYCZ+JOzW4BY2hwFqbLIje3wURSK9f+95wxcREHDdK//Y3Wk6/RUyodvN8uVKuRjYi+pybjclSSauo/4hVxXw7q+pEun/tbBDF0VpEQBvqkS/ouX+nUthuJJOguGe1EGXPXuztHbLQBK5OaN7NHwIDAQAB\",\"license\":\"ewogICAgInZlcnNpb24iOiAiMi4xIiwKICAgICJjb250cmFjdCI6IHsKICAgICAgICAiY3VzdG9tZXIiOiAiUFRBU0xJUkFOQ0FOR0FOSU5ET05FU0lBX3Y4LjE1IGFuZCBhYm92ZSIsCiAgICAgICAgImV4cGlyYXRpb24iOiB7CiAgICAgICAgICAgICJkYXkiOiAxLAogICAgICAgICAgICAibW9udGgiOiAxMSwKICAgICAgICAgICAgInllYXIiOiAyMDI2CiAgICAgICAgfSwKICAgICAgICAiaHdpZHMiOiBbCiAgICAgICAgICAgICJBSGZNeURVNnhLYUd6MElEIgogICAgICAgIF0sCiAgICAgICAgInByb2R1Y3RzIjogWwogICAgICAgICAgICAiaWZhY2UiCiAgICAgICAgXSwKICAgICAgICAiaWRraXQiOiB7CiAgICAgICAgICAgICJkYXRhYmFzZV9zaXplIjogMCwKICAgICAgICAgICAgIm1heF9jbGllbnRfY29ubmVjdGlvbnMiOiAwCiAgICAgICAgfSwKICAgICAgICAiZG90IjogewogICAgICAgICAgICAibW9iaWxlIjogewogICAgICAgICAgICAgICAgImZhY2UiOiB7CiAgICAgICAgICAgICAgICAgICAgImVuYWJsZWQiOiB0cnVlCiAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAgImRvY3VtZW50IjogewogICAgICAgICAgICAgICAgICAgICJlbmFibGVkIjogdHJ1ZQogICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICJuZmMiOiB7CiAgICAgICAgICAgICAgICAgICAgImVuYWJsZWQiOiB0cnVlCiAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAgImZhY2VMaXRlIjogewogICAgICAgICAgICAgICAgICAgICJlbmFibGVkIjogdHJ1ZQogICAgICAgICAgICAgICAgfSwKICAgICAgICAgICAgICAgICJmZWF0dXJlcyI6IHsKICAgICAgICAgICAgICAgICAgICAicmVhbFRpbWVUcmFuc2FjdGlvblJlcG9ydGluZ0VuYWJsZWQiOiB0cnVlLAogICAgICAgICAgICAgICAgICAgICJyZWFsVGltZUFuYWx5dGljc1JlcG9ydGluZ0VuYWJsZWQiOiB0cnVlCiAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAgICAgInBhbG0iOiB7CiAgICAgICAgICAgICAgICAgICAgImVuYWJsZWQiOiB0cnVlCiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgIH0KICAgICAgICB9CiAgICB9LAogICAgImNvbnRyYWN0X3NpZ25hdHVyZSI6ICJqNmtmM0xBNGVCNENPS0RmeGVVUlJYMUpwRVpBczZEbVFOaFVuWnNBTElXOC9RcmFQZFlVWUZqa1NDeUxRd3BQMGZmUzlpWWxXWUtlYkNiV2ExekZERll3Q3JnM3VFZ2R1UlRMUXorSVJkQ0dSdVJKam1BcW5MTmhxeUVaTHFGdzlGd3JXbFBFdWZEUlQrWi9rd1NnZ3FyMXFvazFPVTlTTjJXQzhyaG12aU09Igp9\"}";
+        String plainText = "{\"pub_key\":\"\"}";
         String encryptedString = encryptLargeMessage(adapter.encryptKey(), plainText);
         log.info("\n{}", encryptedString);
         Assertions.assertNotNull(encryptedString, "not null result");
@@ -88,9 +87,9 @@ class RSACryptoTest {
 
     @Test
     void test_rsa_load_from_minio() throws Exception {
-        String minioServerUrl = "https://dev-asli-minio.mypoc.id:9000";
-        String username = "minioadmin";
-        String password = "EwQER9n4ykWTf6B";
+        String minioServerUrl = "https://minio.id:9000";
+        String username = "";
+        String password = "";
 
         MinioClient minioClient = MinioClient.builder()
                 .endpoint(minioServerUrl)
