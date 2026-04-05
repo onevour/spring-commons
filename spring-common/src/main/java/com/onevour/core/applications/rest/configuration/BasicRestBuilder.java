@@ -10,21 +10,19 @@ import org.springframework.core.type.classreading.MetadataReader;
 import org.springframework.core.type.classreading.SimpleMetadataReaderFactory;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class BasicRestBuilder {
 
-    // bugs ketika unit test
-    protected Set<Class<?>> getAllInterfacesInProject(Class<?> parentInterface) {
-        return getAllInterfacesInPackage(parentInterface, groupNameMainApplication().toArray(new String[0]));
-    }
-
     protected Set<Class<?>> getAllInterfacesInPackage(Class<?> parentInterface, String... basePackageName) {
         Set<Class<?>> interfaces = new HashSet<>();
         Set<String> values = new HashSet<>(Arrays.asList(basePackageName));
-        log.info("scan found {} packages", values.size());
+        log.trace("scan found {} packages", values.size());
         for (String basePackage : values) {
             SimpleMetadataReaderFactory metadataReaderFactory = new SimpleMetadataReaderFactory();
 
@@ -33,12 +31,12 @@ public class BasicRestBuilder {
                 String packagePath = basePackage.replace('.', '/');
                 String pattern = "classpath*:" + packagePath + "/**/*.class";
                 // scan with pattern
-                log.info("scan with pattern {}", pattern);
+                log.trace("scan with pattern {}", pattern);
                 resources = new PathMatchingResourcePatternResolver().getResources(pattern);
             } catch (IOException e) {
                 log.error(e.getMessage(), e);
             }
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            List<CompletableFuture<Void>> futures = new java.util.ArrayList<>();
             log.trace("found resource {}", resources.length);
             for (Resource resource : resources) {
                 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -77,10 +75,11 @@ public class BasicRestBuilder {
         return Character.toLowerCase(input.charAt(0)) + input.substring(1);
     }
 
+    /*
     protected Set<String> groupNameMainApplication() {
 
         Set<String> excludes = new HashSet<>();
-        excludes.add("com.onevour.core");
+        excludes.add("com.asliri.core");
         excludes.add("com.sun");
         excludes.add("java.util");
         excludes.add("java.lang");
@@ -116,7 +115,7 @@ public class BasicRestBuilder {
                     log.info("package scan {} is SpringBootMain", packageTmp);
                     continue;
                 }
-                log.info("package scan {} main not found", packageTmp);
+                log.trace("package scan {} main not found", packageTmp);
             } catch (ClassNotFoundException e) {
                 // Abaikan error dan lanjutkan iterasi
             }
@@ -136,5 +135,6 @@ public class BasicRestBuilder {
     private boolean isSpringBootMain(Class<?> cls) {
         return cls.isAnnotationPresent(org.springframework.boot.autoconfigure.SpringBootApplication.class);
     }
+    */
 
 }

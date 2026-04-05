@@ -33,10 +33,6 @@ public class BaseValidator {
         return value == null;
     }
 
-    protected boolean isNull(BaseEntity value) {
-        return value == null;
-    }
-
     protected boolean isNullOrEmpty(Object value) {
         return null == value;
     }

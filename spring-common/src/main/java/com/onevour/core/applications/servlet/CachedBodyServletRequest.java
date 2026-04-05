@@ -15,6 +15,7 @@ import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Slf4j
@@ -49,6 +50,11 @@ public class CachedBodyServletRequest extends HttpServletRequestWrapper {
         }
         InputStream requestInputStream = request.getInputStream();
         this.cachedBody = StreamUtils.copyToByteArray(requestInputStream);
+    }
+
+    public CachedBodyServletRequest(HttpServletRequest request, String newBodyJson) throws IOException {
+        super(request);
+        this.cachedBody = newBodyJson.getBytes(StandardCharsets.UTF_8);
     }
 
     private void buildMultipartToMap(MultipartHttpServletRequest request) {

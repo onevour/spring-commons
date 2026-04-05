@@ -1,11 +1,11 @@
 package com.onevour.core.applications.configurations;
 
+import com.onevour.core.applications.resolver.ClientManifestResolver;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.onevour.core.applications.base.BaseSpec;
-import com.onevour.core.applications.resolver.ClientManifestResolver;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -15,13 +15,8 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 
 @Slf4j
 @Configuration
-@ComponentScan("com.onevour.core.applications.configurations")
+@ComponentScan("com.asliri.core.applications.configurations")
 public class BaseBean {
-
-    @Bean
-    public BaseSpec baseSpec() {
-        return new BaseSpec();
-    }
 
     @Bean
     @ConditionalOnMissingBean

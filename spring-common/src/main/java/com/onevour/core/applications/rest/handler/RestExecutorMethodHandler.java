@@ -30,6 +30,8 @@ import org.springframework.web.client.RestTemplate;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -163,17 +165,18 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
      */
     private String baseURL(String annotationKey, String annotationURL) {
         StringBuilder url = new StringBuilder();
+        /*
         if (Objects.isNull(annotationKey) || annotationKey.trim().isEmpty()) {
             url.append(annotationURL);
-        } else if (annotationKey.startsWith("${") && annotationKey.endsWith("}")) {
+        } else if (annotationKey.trim().startsWith("${") && annotationKey.trim().endsWith("}")) {
             Environment environment = beanFactory.getBean(Environment.class);
-            String key = annotationKey.trim().replace("${", "").replace("}", "");
-            String urlEnv = environment.getProperty(key);
-            Assert.notNull(urlEnv, "base url cannot be null, key : " + key);
+            String originalKey = annotationKey.trim().replace("${", "").replace("}", "");
+            String urlEnv = environment.getProperty(originalKey);
+            Assert.notNull(urlEnv, "base url cannot be null, key : " + originalKey);
             url.setLength(0);
             url.append(urlEnv);
             url.append(annotationURL);
-            log.trace("key {} value {}", key, urlEnv);
+            log.trace("key {} value {}", originalKey, urlEnv);
         } else {
             boolean exist = !beanFactory.getBeansOfType(RestConfigBaseKey.class).isEmpty();
             if (exist) {
@@ -182,8 +185,63 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
                 url.append(annotationURL);
             }
         }
-        return url.toString();
+        */
+        url.append(valueExtractor(annotationKey, true));
+        url.append(valueExtractor(annotationURL, false));
+        return url.toString().trim();
+        // Assert.isTrue(isValidUrl(normalizeUrl), "invalid url scheme with string " + normalizeUrl);
+        // return normalizeUrl;
     }
+
+    private String valueExtractor(String value, boolean tryAsKeyDb) {
+        if (Objects.isNull(value)) {
+            return null;
+        }
+        String valueTrim = value.trim();
+        if (valueTrim.isEmpty()) {
+            return valueTrim;
+        }
+        if (valueTrim.startsWith("${") && valueTrim.endsWith("}")) {
+            String originalKey = valueTrim.replace("${", "").replace("}", "");
+            Environment environment = beanFactory.getBean(Environment.class);
+            String valueEnvironment = environment.getProperty(originalKey);
+            Assert.notNull(valueEnvironment, "base url cannot be null, key : " + originalKey);
+            return valueEnvironment.trim();
+        }
+        if ((valueTrim.startsWith("D{") || valueTrim.startsWith("d{")) && valueTrim.endsWith("}")) {
+            String originalKey = valueTrim.replace("D{", "").replace("d{", "").replace("}", "");
+            Assert.isTrue(!beanFactory.getBeansOfType(RestConfigBaseKey.class).isEmpty(), "RestConfigBaseKey not implement");
+            RestConfigBaseKey restConfigBaseKey = beanFactory.getBean(RestConfigBaseKey.class);
+            String valueDatabase = restConfigBaseKey.getValue(originalKey);
+            Assert.notNull(valueDatabase, "Database rest config table field with key " + originalKey + " cannot be null");
+            return valueDatabase.trim();
+        }
+        if (valueTrim.startsWith("http")) {
+            return valueTrim;
+        }
+        // support lasted version
+        if (tryAsKeyDb) {
+            Assert.isTrue(!beanFactory.getBeansOfType(RestConfigBaseKey.class).isEmpty(), "RestConfigBaseKey not implement");
+            RestConfigBaseKey restConfigBaseKey = beanFactory.getBean(RestConfigBaseKey.class);
+            String valueDatabase = restConfigBaseKey.getValue(value);
+            Assert.notNull(valueDatabase, "Database rest config table field with key " + value + " cannot be null");
+            return valueDatabase.trim();
+        }
+        return valueTrim;
+    }
+
+    public boolean isValidUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+        try {
+            URI uri = new URI(url);
+            return uri.getScheme() != null && uri.getHost() != null;
+        } catch (URISyntaxException e) {
+            return false;
+        }
+    }
+
 
     /**
      * check header <br/>
@@ -226,7 +284,7 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
             builder.setRequest(param);
 
         }
-        log.trace("url {}", url);
+        Assert.isTrue(isValidUrl(url), "invalid url scheme " + url);
         builder.setUrl(url);
     }
 
@@ -274,6 +332,7 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
         String configName = configString.toString();
 
         try {
+
             RestTemplate restTemplate = restTemplateFactory(isAllowConfig, configName, connectTimeout, requestTimeout, readTimeout);
             log.trace("http request {} {}", request.getMethod(), request.getUrl());
             request.validate();
@@ -309,13 +368,12 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
         RequestEntity.BodyBuilder requestBuilder = RequestEntity.method(request.getMethod(), request.getUrl());
         HttpHeaders headers = request.getHeaders();
 
-        if (HttpMethod.GET != request.getMethod()) {
-            if (Objects.nonNull(request.getRequest())) {
-                requestBuilder.body(request.getRequest());
-                if (request.getRequest() instanceof byte[]) {
-                    headers.setContentLength(((byte[]) request.getRequest()).length);
-                }
+        if (HttpMethod.GET != request.getMethod() && Objects.nonNull(request.getRequest())) {
+            requestBuilder.body(request.getRequest());
+            if (request.getRequest() instanceof byte[]) {
+                headers.setContentLength(((byte[]) request.getRequest()).length);
             }
+
         }
         requestBuilder.headers(headers);
         if (Objects.isNull(request.getClassResponse())) {
@@ -367,7 +425,6 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
             factoryBuilder.addPropertyValue("connectTimeout", Integer.max(connectTimeout, 12000));
             factoryBuilder.addPropertyValue("readTimeout", Integer.max(readTimeout, 12000));
             registry.registerBeanDefinition("customRequestFactory", factoryBuilder.getBeanDefinition());
-
             // Add properties to RestTemplate BeanDefinition
             builder.addPropertyReference("requestFactory", "customRequestFactory");
             // Register the RestTemplate bean definition

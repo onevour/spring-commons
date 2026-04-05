@@ -1,17 +1,17 @@
 package com.onevour.core.applications.base;
 
+import com.onevour.core.applications.session.ClientManifest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onevour.core.applications.commons.ValueOf;
-import com.onevour.core.applications.session.ClientManifest;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-
 import javax.validation.ConstraintViolation;
 import javax.validation.ConstraintViolationException;
 import javax.validation.Validator;
+
 import java.util.Objects;
 import java.util.Set;
 

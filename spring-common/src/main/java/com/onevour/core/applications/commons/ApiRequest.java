@@ -1,5 +1,6 @@
 package com.onevour.core.applications.commons;
 
+import com.onevour.core.applications.exceptions.ApiRequestInvalidParameterException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -62,15 +63,15 @@ public class ApiRequest {
 
     public void validate() {
         if (Objects.isNull(url)) {
-            throw new RuntimeException("url cannot be null");
+            throw new ApiRequestInvalidParameterException("url cannot be null");
         }
 
         // validate expect response
         if (Objects.isNull(clazzResponse) && Objects.isNull(parameterizedResponse)) {
-            throw new RuntimeException("cannot found response class");
+            throw new ApiRequestInvalidParameterException("cannot found response class");
         }
         if (Objects.nonNull(clazzResponse) && Objects.nonNull(parameterizedResponse)) {
-            throw new RuntimeException("found more than one response class and parameterize");
+            throw new ApiRequestInvalidParameterException("found more than one response class and parameterize");
         }
     }
 
@@ -239,7 +240,7 @@ public class ApiRequest {
         private void validateParam() {
             // validate parameter request
             if (HttpMethod.GET == method && Objects.nonNull(request) && requestObjectForGet && 0 < requestGetTemp.size()) {
-                throw new RuntimeException("method get not allowed exist request body object and call param(key, value)");
+                throw new ApiRequestInvalidParameterException("method get not allowed exist request body object and call param(key, value)");
             }
         }
 
@@ -263,7 +264,7 @@ public class ApiRequest {
             boolean isNotNullRequest = Objects.nonNull(request);
             boolean isNotZero = 0 < requestGetTemp.size();
             if (isGet && isNotNullRequest && requestObjectForGet && isNotZero) {
-                throw new RuntimeException("cannot combine setRequest(Object request, boolean isGet) for request get and param(String key, String value)");
+                throw new ApiRequestInvalidParameterException("cannot combine setRequest(Object request, boolean isGet) for request get and param(String key, String value)");
             }
             AtomicBoolean first = new AtomicBoolean(false);
             StringBuilder sb = new StringBuilder(url);
@@ -278,7 +279,7 @@ public class ApiRequest {
                         sb.append("=").append(field.get(request));
                         first.set(true);
                     } catch (IllegalAccessException e) {
-                        throw new RuntimeException(e);
+                        throw new ApiRequestInvalidParameterException(e);
                     }
                 }
                 url = sb.toString();

@@ -16,9 +16,8 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
-
-@Slf4j
 @Component
+@Slf4j
 public class ImageCommons {
 
     @Value("${app.file.upload-dir:uploads}")
@@ -118,7 +117,7 @@ public class ImageCommons {
 
     public static String resizeImage(String original) {
         try {
-            byte[] data = Base64.getDecoder().decode(original);
+            byte[] data = Base64Commons.decode(original);
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(data));
             BufferedImage resized = cropCenter(image);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -134,7 +133,7 @@ public class ImageCommons {
 
     public static String resizeImagePassPhoto(String original) {
         try {
-            byte[] data = Base64.getDecoder().decode(original);
+            byte[] data = Base64Commons.decode(original);
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(data));
             BufferedImage resized = cropPassPhoto(image);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();

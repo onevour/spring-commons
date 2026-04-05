@@ -1,6 +1,5 @@
 package com.onevour.core.applications.configurations;
 
-
 import com.onevour.core.applications.annotations.ConverterResolver;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.JoinPoint;
@@ -21,7 +20,7 @@ import java.util.Objects;
 @Aspect
 @EnableAspectJAutoProxy
 @Configuration
-@ComponentScan("com.onevour.core.applications.configurations")
+@ComponentScan("com.asliri.core.applications.configurations")
 public class MethodHandlerConverter {
 
     @Autowired

@@ -3,13 +3,20 @@ plugins {
     id 'io.spring.dependency-management' version '1.0.15.RELEASE'
 }
 
+ext.versions = [
+        springBoot: '2.7.17',
+]
+
 allprojects {
     apply plugin: 'io.spring.dependency-management'
     group 'com.onevour.core'
 
     dependencyManagement {
+        imports {
+            mavenBom "org.springframework.boot:spring-boot-dependencies:${versions.springBoot}"
+        }
         dependencies {
-            // dependency 'org.projectlombok:lombok:1.18.2'
+            dependency 'org.projectlombok:lombok:1.18.2'
         }
     }
 }
@@ -23,28 +30,34 @@ subprojects {
         withSourcesJar()
     }
 
-    repositories {
-        mavenLocal()
-        mavenCentral()
-        maven { url "https://repo.spring.io/snapshot" }
-        maven { url "https://repo.spring.io/milestone" }
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/onevour/spring-commons")
-            credentials {
-                username = project.findProperty("user") ?: System.getenv("USERNAME")
-                password = project.findProperty("token") ?: System.getenv("TOKEN")
-            }
-        }
-    }
-
     dependencies {
-        compileOnly 'org.projectlombok:lombok:1.18.38'
-        annotationProcessor 'org.projectlombok:lombok:1.18.38'
+
     }
 
     test {
         useJUnitPlatform()
     }
+
+//    repositories {
+//        mavenLocal()
+//        mavenCentral()
+//        maven {
+//            name = "GitHubPackages"
+//            url = uri("https://maven.pkg.github.com/onevour/spring-commons")
+//            credentials {
+//                username = project.findProperty("user") ?: System.getenv("USERNAME")
+//                password = project.findProperty("token") ?: System.getenv("TOKEN")
+//            }
+//        }
+//    }
+//
+//    dependencies {
+//        compileOnly 'org.projectlombok:lombok:1.18.38'
+//        annotationProcessor 'org.projectlombok:lombok:1.18.38'
+//    }
+//
+//    test {
+//        useJUnitPlatform()
+//    }
 
 }

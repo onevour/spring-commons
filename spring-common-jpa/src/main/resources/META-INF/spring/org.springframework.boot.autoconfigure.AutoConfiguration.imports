@@ -1,0 +1,3 @@
+com.onevour.core.configurations.EntityManagerProvider
+com.onevour.core.listeners.AuditUpdateListener
+com.onevour.core.listeners.AuditTableCreator

@@ -30,21 +30,10 @@ public class RestBeanRegistry extends BasicRestBuilder implements BeanFactoryPos
     @Override
     public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
         if (Objects.isNull(applicationContext)) {
-            log.info("ApplicationContext still null");
+            log.warn("ApplicationContext still null");
             return;
         }
         extractedFromContext(beanFactory);
-
-        // issue on unit test
-
-//        Set<Class<?>> classes = getAllInterfacesInProject(RestRepository.class);
-//        log.info("RestRepository found {}", classes.size());
-//        for (Class<?> c : classes) {
-//            log.trace("RestRepository class {}", c);
-//            Object o = createProxyBean(c, beanFactory);
-//            beanFactory.registerSingleton(variableName(c.getSimpleName()), o);
-//            beanFactory.autowireBean(o);
-//        }
     }
 
     private void extractedFromContext(ConfigurableListableBeanFactory beanFactory) {

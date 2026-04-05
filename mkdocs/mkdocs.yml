@@ -1,0 +1,14 @@
+site_name: SDK Common
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+
+
+nav:
+  - Home: README.MD
+  - Setup: 001_SETUP.MD
+  - MVC: 002_MVC.MD
+  - Rest Repository: 003_REST_REPOSITORY.MD

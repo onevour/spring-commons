@@ -1,6 +1,7 @@
 package com.onevour.core.applications.rest.model;
 
 import lombok.*;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.ResourceAccessException;
@@ -13,6 +14,8 @@ import java.util.function.Supplier;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ResponseWrapper<T> {
+
+    private HttpHeaders headers;
 
     private int code;
 
@@ -32,6 +35,7 @@ public class ResponseWrapper<T> {
 
     public ResponseWrapper(ResponseEntity<T> response) {
         if (Objects.nonNull(response)) {
+            this.headers = response.getHeaders();
             this.code = response.getStatusCodeValue();
             this.message = "success";
             this.body = response.getBody();
@@ -39,14 +43,23 @@ public class ResponseWrapper<T> {
     }
 
     public ResponseWrapper(HttpStatusCodeException e) {
+        this.headers = e.getResponseHeaders();
         this.code = e.getRawStatusCode();
         this.message = e.getStatusText();
         this.exception = e;
         this.exceptionBodyAsText = e.getResponseBodyAsString();
     }
 
+    /**
+     * service unavailable case by<br/>
+     * unknown host<br/>
+     * read timeout<br/>
+     * connect timeout<br/>
+     * connection refused<br/>
+     */
     public ResponseWrapper(ResourceAccessException resourceAccessException) {
         this.resourceAccessException = resourceAccessException;
+        this.code = 502;
     }
 
     public boolean isSuccess() {

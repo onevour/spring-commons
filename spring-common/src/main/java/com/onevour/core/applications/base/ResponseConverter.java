@@ -6,6 +6,7 @@ package com.onevour.core.applications.base;
  * @param <T> result
  */
 public abstract class ResponseConverter<E, T> {
+
     public abstract T convert(E param);
 
 }

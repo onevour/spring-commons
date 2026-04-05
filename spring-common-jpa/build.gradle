@@ -1,0 +1,74 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+}
+
+group = 'com.onevour.core'
+version = '2.0.0.2'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+}
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/onevour/spring-commons")
+            credentials {
+                username = project.findProperty("user") ?: System.getenv("USERNAME")
+                password = project.findProperty("token") ?: System.getenv("TOKEN")
+            }
+        }
+    }
+    publications {
+        gpr(MavenPublication) {
+            from(components.java)
+            // ⬇⬇⬇ INI WAJIB karena semua dependecy gak ada versinya, ambil dari root ⬇⬇⬇
+            versionMapping {
+                usage("java-api") {
+                    fromResolutionResult()
+                }
+                usage("java-runtime") {
+                    fromResolutionResult()
+                }
+            }
+        }
+    }
+}
+
+dependencies {
+    api "org.slf4j:slf4j-api"
+    // === JPA API (javax, Boot 2.x) ===
+    api "javax.persistence:javax.persistence-api"
+
+    // === Spring Data JPA (Repository, Specification, etc) ===
+    api "org.springframework.data:spring-data-jpa"
+
+    // === Spring ORM & Transaction ===
+    api "org.springframework:spring-orm"
+    api "org.springframework:spring-tx"
+
+    api "javax.annotation:javax.annotation-api"
+
+    api "org.hibernate:hibernate-core"
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

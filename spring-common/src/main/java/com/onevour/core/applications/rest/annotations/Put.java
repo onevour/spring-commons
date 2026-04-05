@@ -13,7 +13,7 @@ public @interface Put {
 
     String key() default "";
 
-    String url();
+    String url() default "";
 
     int connect() default -1;
 

@@ -1,13 +1,10 @@
 package com.onevour.core.applications.base;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.onevour.core.applications.commons.ApiRequest;
-import com.onevour.core.applications.commons.ValueOf;
 import com.onevour.core.applications.exceptions.BadGatewayException;
-import com.onevour.core.applications.session.ClientManifest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
@@ -63,9 +60,6 @@ public abstract class BaseService {
     @Autowired
     protected ObjectMapper mapper;
 
-    @Autowired
-    protected BaseSpec baseSpec;
-
     protected ServiceResolver success() {
         return success(SUCCESS, SUCCESS_MESSAGE);
     }
@@ -119,61 +113,6 @@ public abstract class BaseService {
 
     protected <T> ServiceResolver<T> error(int code, String message, T result) {
         return new ServiceResolver<T>(code, message, result);
-    }
-
-    protected <T extends BaseEntity> T sig(T value) {
-        return sig(value, null);
-    }
-
-    protected <T extends BaseEntity> T sig(T value, String user) {
-        if (Objects.isNull(value)) return value;
-        if (ValueOf.isNull(value.getCreatedDate())) {
-            value.setCreatedDate(new Date());
-        } else value.setModifiedDate(new Date());
-        if (ValueOf.nonNull(user)) {
-            if (ValueOf.isNull(value.getCreatedBy())) {
-                value.setCreatedBy(user);
-            }
-            value.setModifiedBy(user);
-        }
-        return value;
-    }
-
-    protected void errorData(String message) {
-        throw new DataIntegrityViolationException(message);
-    }
-
-    protected <T extends BaseEntity> void wrap(T value, String username) {
-        if (Objects.isNull(value.getCreatedDate())) {
-            value.setCreatedDate(new Date());
-            value.setModifiedDate(new Date());
-            value.setCreatedBy(username);
-            value.setModifiedBy(username);
-        } else {
-            value.setModifiedDate(new Date());
-            value.setModifiedBy(username);
-        }
-    }
-
-    protected <T extends BaseEntity> T sign(T value, ClientManifest sign) {
-        return sign(value, sign.getUsername());
-    }
-
-    protected <T extends BaseEntity> T sign(T value) {
-        return sign(value, "system");
-    }
-
-    protected <T extends BaseEntity> T sign(T value, String username) {
-        if (Objects.isNull(value.getCreatedDate())) {
-            value.setCreatedDate(new Date());
-            value.setModifiedDate(new Date());
-            value.setCreatedBy(username);
-            value.setModifiedBy(username);
-        } else {
-            value.setModifiedDate(new Date());
-            value.setModifiedBy(username);
-        }
-        return value;
     }
 
     protected <T> T requestData(ApiRequest request) {
