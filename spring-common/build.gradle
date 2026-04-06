@@ -40,18 +40,7 @@ publishing {
 
 dependencies {
     api platform("org.springframework.boot:spring-boot-dependencies:${versions.springBoot}")
-    // springframework
-    api "org.springframework:spring-context"
-    api "org.springframework:spring-beans"
-    api "org.springframework:spring-aop"
-    api "org.springframework:spring-web"
-    // springframework boot
-    api "org.springframework.boot:spring-boot-autoconfigure"
-    // aop
-    api "com.fasterxml.jackson.core:jackson-databind"
-    api "javax.validation:validation-api"
-    api "org.aspectj:aspectjweaver"
-    api "org.slf4j:slf4j-api"
+
     // commons min version
     constraints {
         api "joda-time:joda-time:${versions.joda}"
@@ -61,6 +50,22 @@ dependencies {
         api "org.projectlombok:lombok:${versions.lombok}"
         annotationProcessor "org.projectlombok:lombok:${versions.lombok}"
     }
+
+    // springframework
+    api "org.springframework:spring-context"
+    api "org.springframework:spring-beans"
+    api "org.springframework:spring-aop"
+    api "org.springframework:spring-web"
+
+    // springframework boot
+    api "org.springframework.boot:spring-boot-autoconfigure"
+
+    // aop
+    api "com.fasterxml.jackson.core:jackson-databind"
+    api "javax.validation:validation-api"
+    api "org.aspectj:aspectjweaver"
+    api "org.slf4j:slf4j-api"
+
     // commons
     api 'joda-time:joda-time'
     api 'commons-io:commons-io'
