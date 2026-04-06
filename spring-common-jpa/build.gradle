@@ -41,8 +41,8 @@ publishing {
 dependencies {
     api platform("org.springframework.boot:spring-boot-dependencies:${versions.springBoot}")
     constraints {
-        api 'org.projectlombok:lombok:1.18.2'
-        annotationProcessor 'org.projectlombok:lombok:1.18.2'
+        api "org.projectlombok:lombok:${versions.lombok}"
+        annotationProcessor "org.projectlombok:lombok:${versions.lombok}"
     }
     api "org.slf4j:slf4j-api"
     // === JPA API (javax, Boot 2.x) ===

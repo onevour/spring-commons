@@ -48,9 +48,15 @@ publishing {
 }
 
 dependencies {
+    constraints {
+        api "commons-codec:commons-codec:${versions.commonsCodec}"
+        api "io.minio:minio:${versions.minio}"
+        api "org.projectlombok:lombok:${versions.lombok}"
+        annotationProcessor "org.projectlombok:lombok:${versions.lombok}"
+    }
     api "org.slf4j:slf4j-api"
-    api "commons-codec:commons-codec:1.15"
-    api "io.minio:minio:8.5.14"
+    api "commons-codec:commons-codec"
+    api "io.minio:minio"
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
