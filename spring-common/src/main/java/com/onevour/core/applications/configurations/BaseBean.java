@@ -15,7 +15,7 @@ import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 
 @Slf4j
 @Configuration
-@ComponentScan("com.asliri.core.applications.configurations")
+@ComponentScan("com.onevour.core.applications.configurations")
 public class BaseBean {
 
     @Bean

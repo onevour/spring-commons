@@ -12,7 +12,7 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * @deprecated issue when debug very slow, com.asliri.core.applications.base.BaseRepository
+ * @deprecated issue when debug very slow, com.onevour.core.applications.base.BaseRepository
  */
 @Deprecated
 public class BaseRepositoryImpl<T, ID extends Serializable> extends SimpleJpaRepository<T, ID> implements BaseRepository<T, ID> {

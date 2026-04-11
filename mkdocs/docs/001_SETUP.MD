@@ -13,7 +13,7 @@ maven {
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
-    implementation 'com.asliri.core:spring-common:2.0.0.7'
+    implementation 'com.onevour.core:spring-common:2.0.0.7'
 }
 ```
 
@@ -24,7 +24,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation "org.springframework.boot:spring-boot-starter-data-jpa"
-    implementation 'com.asliri.core:spring-common:2.0.0.7'
-    implementation 'com.asliri.core:spring-common-jpa:2.0.0.2'
+    implementation 'com.onevour.core:spring-common:2.0.0.7'
+    implementation 'com.onevour.core:spring-common-jpa:2.0.0.2'
 }
 ```

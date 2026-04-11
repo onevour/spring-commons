@@ -11,7 +11,7 @@ import javax.persistence.EntityManager;
 import java.io.Serializable;
 
 /**
- * @deprecated issue when debug very slow, com.asliri.core.applications.base.BaseRepository
+ * @deprecated issue when debug very slow, com.onevour.core.applications.base.BaseRepository
  */
 @Deprecated
 public class BaseRepositoryFactoryBean<R extends JpaRepository<T, I>, T, I extends Serializable> extends JpaRepositoryFactoryBean<R, T, I> {

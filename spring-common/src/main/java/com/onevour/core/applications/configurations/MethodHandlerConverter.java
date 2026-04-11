@@ -20,7 +20,7 @@ import java.util.Objects;
 @Aspect
 @EnableAspectJAutoProxy
 @Configuration
-@ComponentScan("com.asliri.core.applications.configurations")
+@ComponentScan("com.onevour.core.applications.configurations")
 public class MethodHandlerConverter {
 
     @Autowired

@@ -79,7 +79,7 @@ public class BasicRestBuilder {
     protected Set<String> groupNameMainApplication() {
 
         Set<String> excludes = new HashSet<>();
-        excludes.add("com.asliri.core");
+        excludes.add("com.onevour.core");
         excludes.add("com.sun");
         excludes.add("java.util");
         excludes.add("java.lang");
