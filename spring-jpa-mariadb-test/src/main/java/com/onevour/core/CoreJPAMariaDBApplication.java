@@ -53,8 +53,8 @@ public class CoreJPAMariaDBApplication implements CommandLineRunner {
 //        log.info("response database combine {}", pokemonRestRepository.callDatabaseCombine());
         // runningTransactionCompanyAndFeature();
         Config config = configRepository.findById("POKEMON_DITTO").orElseThrow();
-        config.setValue("https://google.com");
-        configRepository.delete(config);
+        config.setValue("https://youtube.com");
+        configRepository.save(config); // update
 //        Feature feature = featureRepository.findById(3L).orElseThrow();
 //        featureRepository.delete(feature);
     }
