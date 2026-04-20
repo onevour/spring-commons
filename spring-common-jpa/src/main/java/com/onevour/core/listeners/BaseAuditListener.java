@@ -34,6 +34,8 @@ public abstract class BaseAuditListener {
     @Autowired(required = false)
     AuditorAware<String> auditorAware;
 
+    protected final Set<String> keyword = new HashSet<>(Arrays.asList("key", "value", "order", "group"));
+
     protected final PhysicalNamingStrategyStandardImpl naming = new PhysicalNamingStrategyStandardImpl();
 
     protected Map<String, Object> extractDeletedState(PreDeleteEvent event) {
@@ -76,6 +78,9 @@ public abstract class BaseAuditListener {
                     String[] cols = aep.getPropertyColumnNames(i);
                     if (cols != null && cols.length > 0 && cols[0] != null) {
                         col = cols[0];
+                        if (keyword.contains(col.toLowerCase())) {
+                            col = "`" + col + "`";
+                        }
                     }
                 } catch (Exception ignored) {
                 }
@@ -90,6 +95,9 @@ public abstract class BaseAuditListener {
                     Column ann = f.getAnnotation(Column.class);
                     if (ann != null && !ann.name().isEmpty()) {
                         col = ann.name();
+                        if (keyword.contains(col.toLowerCase())) {
+                            col = "`" + col + "`";
+                        }
                     }
                 }
             }
@@ -101,10 +109,18 @@ public abstract class BaseAuditListener {
                 Identifier id = Identifier.toIdentifier(prop);
                 Identifier phys = naming.toPhysicalColumnName(id, null);
                 col = phys.getText(); // contoh: modifiedDate -> modified_date
+                if (keyword.contains(col.toLowerCase())) {
+                    col = "`" + col + "`";
+                }
             }
 
             // 4) fallback terakhir – pakai prop apa adanya
-            if (col == null) col = prop;
+            if (col == null) {
+                col = prop;
+                if (keyword.contains(col.toLowerCase())) {
+                    col = "`" + col + "`";
+                }
+            }
 
             if (isManyToOne(clazz, prop)) {
                 log.trace("delete value contains many to one relation, extract value");
@@ -389,8 +405,9 @@ public abstract class BaseAuditListener {
 
     protected void insertHistory(Session s, String tableLive, String tableHis, Map<String, Object> data, Map<String, Object> primaryKeys, String auditType) {
         log.debug("audit type {}", auditType);
-
+        // final Set<String> keyword = new HashSet<>(Arrays.asList("key", "value", "order", "group"));
         s.doWork(conn -> {
+
             try {
                 List<String> cols = new ArrayList<>(data.keySet());
                 // statement insert
@@ -437,7 +454,7 @@ public abstract class BaseAuditListener {
                     log.debug("soft delete entity success");
                 }
             } catch (Exception e) {
-                log.error(e.getMessage(), e);
+                log.error("error insert history: {}", e.getMessage(), e);
                 // ❗ WAJIB claim error supaya SPRING TRANSACTION ROLLBACK
                 throw new AuditHistoryListenerException();
             }

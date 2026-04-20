@@ -54,15 +54,13 @@ public class AuditTableCreator {
         }
         init();
     }
-    
+
     /**
      * Dipanggil otomatis saat Spring context siap
      * TANPA tergantung Spring Boot
      */
 
     public void init() {
-
-
         log.debug("create table history");
 
         // Ambil SessionFactory Hibernate yang asli
@@ -94,102 +92,187 @@ public class AuditTableCreator {
 
     private void createAuditTableIfNotExist(Session session, String tableName, String auditTable) {
         session.doWork(conn -> {
-            try {
-                // 1. check table exist
-                boolean exist = false;
-                try (PreparedStatement ps = conn.prepareStatement("SELECT to_regclass(?)")) {
-                    ps.setString(1, auditTable);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next() && rs.getString(1) != null) {
-                            exist = true;
-                        }
-                    }
-                }
-                if (exist) {
-                    log.debug("table {} already exist", auditTable);
-                    return;
-                }
-                // 2. create table and add audit field
-                try (Statement st = conn.createStatement()) {
-                    st.addBatch("CREATE TABLE IF NOT EXISTS " + auditTable + " AS TABLE " + tableName + " WITH NO DATA");
-                    st.addBatch("ALTER TABLE " + auditTable + " ADD COLUMN IF NOT EXISTS audit_id UUID PRIMARY KEY");
-                    st.addBatch("ALTER TABLE " + auditTable + " ADD COLUMN IF NOT EXISTS audit_type VARCHAR(20)");
-                    st.addBatch("ALTER TABLE " + auditTable + " ADD COLUMN IF NOT EXISTS audit_date TIMESTAMP");
-                    st.executeBatch();
-                }
-                // 3. copy index, skip pk
-                Set<String> pks = new HashSet<>();
-                List<Map<String, String>> indexRows = new ArrayList<>();
-                try (PreparedStatement ps = conn.prepareStatement("SELECT indexname, indexdef FROM pg_indexes WHERE tablename = ?")) {
-                    ps.setString(1, tableName);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        DatabaseMetaData dbMetaData = conn.getMetaData();
-                        try (ResultSet pk = dbMetaData.getPrimaryKeys(null, null, tableName)) {
-                            while (pk.next()) {
-                                String columnName = pk.getString("COLUMN_NAME");
-                                String columnPkName = pk.getString("PK_NAME");
-                                pks.add(columnPkName);
-                                log.trace("primary key: {}, index name: {}", columnName, columnPkName);
-                            }
-                        }
-                        ResultSetMetaData metaData = rs.getMetaData();
-                        int columnCount = metaData.getColumnCount();
-                        while (rs.next()) {
-                            Map<String, String> indexRow = new LinkedHashMap<>();
-                            for (int i = 1; i <= columnCount; i++) {
-                                log.trace("add key {}, value {}", metaData.getColumnName(i), rs.getObject(i));
-                                indexRow.put(metaData.getColumnName(i), rs.getString(i));
-                            }
-                            indexRows.add(indexRow);
 
-                        }
-                    }
-                }
-                Set<String> indexTable = new HashSet<>();
-                for (Map<String, String> row : indexRows) {
-                    // loop column
-                    for (Map.Entry<String, String> col : row.entrySet()) {
-                        String key = col.getKey();
-                        String value = col.getValue();
-                        if ("indexname".equalsIgnoreCase(key) && pks.contains(value)) {
-                            log.trace("skip copy pk key {}", value);
-                            break;
-                        }
-                        if ("indexname".equalsIgnoreCase(key)) continue; // skip column index name
-                        indexTable.add(col.getValue());
-                    }
-                }
-                if (indexTable.isEmpty()) {
-                    return;
-                }
-                try (Statement st = conn.createStatement()) {
-                    for (String index : indexTable) {
-                        // ambil nama index asli
-                        String indexName = substringBetween(index, "INDEX ", " ON ");
-                        String newIndexName = indexName + "_" + auditTable;
-
-                        // ambil bagian setelah USING (ignore-case)
-                        String afterUsing = substringAfterIgnoreCase(index, " using ");
-
-                        // build SQL baru
-                        String indexSql = "CREATE INDEX IF NOT EXISTS "
-                                + newIndexName
-                                + " ON " + auditTable
-                                + " USING " + afterUsing;
-
-                        log.trace("create new index → {}", indexSql);
-                        st.addBatch(indexSql);
-                    }
-                    st.executeBatch();
-                }
-
-
-            } catch (Exception e) {
-                log.error("Error transaction history", e);
-                // ❗ WAJIB claim error supaya SPRING TRANSACTION ROLLBACK
-                throw new AuditHistoryListenerException();
+            String dbName = conn.getMetaData().getDatabaseProductName().toLowerCase();
+            log.info("db name {}", dbName);
+            if (dbName.contains("mysql") || dbName.contains("mariadb")) {
+                createAuditTableMysqlOrMariaDb(tableName, auditTable, conn);
+            }
+            if (dbName.contains("postgresql")) {
+                createAuditTablePostgres(tableName, auditTable, conn);
             }
         });
+    }
+
+    private void createAuditTableMysqlOrMariaDb(String tableName, String auditTable, Connection conn) {
+
+        try {
+            String sql = "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?";
+            // 1. check table exist
+            boolean exist = false;
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setString(1, auditTable);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next() && rs.getString(1) != null) {
+                        exist = true;
+                    }
+                }
+            }
+            if (exist) {
+                log.trace("table {} already exist", auditTable);
+                return;
+            }
+            // 2. create table and add audit field
+            try (Statement st = conn.createStatement()) {
+                st.addBatch("CREATE TABLE IF NOT EXISTS " + auditTable + " LIKE " + tableName);
+                st.addBatch("ALTER TABLE " + auditTable + " ADD COLUMN IF NOT EXISTS audit_id VARCHAR(36) DEFAULT (UUID())");
+                st.addBatch("ALTER TABLE " + auditTable + " ADD COLUMN IF NOT EXISTS audit_type VARCHAR(20)");
+                st.addBatch("ALTER TABLE " + auditTable + " ADD COLUMN IF NOT EXISTS audit_date TIMESTAMP");
+                // add pk
+                st.executeBatch();
+            }
+
+            String sqlHasPk = "SELECT COUNT(*) > 0 AS has_pk FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE()  AND TABLE_NAME = ?  AND CONSTRAINT_TYPE = ?";
+            boolean existPk = false;
+            try (PreparedStatement ps = conn.prepareStatement(sqlHasPk)) {
+                ps.setString(1, auditTable);
+                ps.setString(2, "PRIMARY KEY");
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) >= 1) {
+                        existPk = true;
+                    }
+                }
+            }
+            // check auto increment
+            String autoIncColumn = null;
+            String sqlAutoIncrement = "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND EXTRA LIKE '%auto_increment%'";
+            try (PreparedStatement ps = conn.prepareStatement(sqlAutoIncrement)) {
+                ps.setString(1, auditTable);
+                ResultSet rs = ps.executeQuery();
+
+                if (rs.next()) {
+                    autoIncColumn = rs.getString("COLUMN_NAME");
+                }
+            }
+
+            try (Statement st = conn.createStatement()) {
+                if (Objects.nonNull(autoIncColumn)) {
+                    log.trace("AUTO_INCREMENT detected on column {}", autoIncColumn);
+                    st.addBatch("ALTER TABLE " + auditTable + " MODIFY " + autoIncColumn + " INT");
+                }
+                if (existPk) {
+                    log.trace("table {} pk exist, drop before update", auditTable);
+                    st.addBatch("ALTER TABLE " + auditTable + " DROP PRIMARY KEY");
+                }
+                // add pk
+                st.addBatch("ALTER TABLE " + auditTable + " ADD PRIMARY KEY (audit_id)");
+                st.executeBatch();
+            }
+
+        } catch (Exception e) {
+            log.error("Error transaction history table {}, {}", tableName, auditTable, e);
+            // ❗ WAJIB claim error supaya SPRING TRANSACTION ROLLBACK
+            throw new AuditHistoryListenerException();
+        }
+    }
+
+    private void createAuditTablePostgres(String tableName, String auditTable, Connection conn) {
+        try {
+
+            // 1. check table exist
+            boolean exist = false;
+            try (PreparedStatement ps = conn.prepareStatement("SELECT to_regclass(?)")) {
+                ps.setString(1, auditTable);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next() && rs.getString(1) != null) {
+                        exist = true;
+                    }
+                }
+            }
+            if (exist) {
+                log.debug("table {} already exist", auditTable);
+                return;
+            }
+            // 2. create table and add audit field
+            try (Statement st = conn.createStatement()) {
+                st.addBatch("CREATE TABLE IF NOT EXISTS " + auditTable + " AS TABLE " + tableName + " WITH NO DATA");
+                st.addBatch("ALTER TABLE " + auditTable + " ADD COLUMN IF NOT EXISTS audit_id UUID PRIMARY KEY");
+                st.addBatch("ALTER TABLE " + auditTable + " ADD COLUMN IF NOT EXISTS audit_type VARCHAR(20)");
+                st.addBatch("ALTER TABLE " + auditTable + " ADD COLUMN IF NOT EXISTS audit_date TIMESTAMP");
+                st.executeBatch();
+            }
+            // 3. copy index, skip pk
+            Set<String> pks = new HashSet<>();
+            List<Map<String, String>> indexRows = new ArrayList<>();
+            try (PreparedStatement ps = conn.prepareStatement("SELECT indexname, indexdef FROM pg_indexes WHERE tablename = ?")) {
+                ps.setString(1, tableName);
+                try (ResultSet rs = ps.executeQuery()) {
+                    DatabaseMetaData dbMetaData = conn.getMetaData();
+                    try (ResultSet pk = dbMetaData.getPrimaryKeys(null, null, tableName)) {
+                        while (pk.next()) {
+                            String columnName = pk.getString("COLUMN_NAME");
+                            String columnPkName = pk.getString("PK_NAME");
+                            pks.add(columnPkName);
+                            log.trace("primary key: {}, index name: {}", columnName, columnPkName);
+                        }
+                    }
+                    ResultSetMetaData metaData = rs.getMetaData();
+                    int columnCount = metaData.getColumnCount();
+                    while (rs.next()) {
+                        Map<String, String> indexRow = new LinkedHashMap<>();
+                        for (int i = 1; i <= columnCount; i++) {
+                            log.trace("add key {}, value {}", metaData.getColumnName(i), rs.getObject(i));
+                            indexRow.put(metaData.getColumnName(i), rs.getString(i));
+                        }
+                        indexRows.add(indexRow);
+
+                    }
+                }
+            }
+            Set<String> indexTable = new HashSet<>();
+            for (Map<String, String> row : indexRows) {
+                // loop column
+                for (Map.Entry<String, String> col : row.entrySet()) {
+                    String key = col.getKey();
+                    String value = col.getValue();
+                    if ("indexname".equalsIgnoreCase(key) && pks.contains(value)) {
+                        log.trace("skip copy pk key {}", value);
+                        break;
+                    }
+                    if ("indexname".equalsIgnoreCase(key)) continue; // skip column index name
+                    indexTable.add(col.getValue());
+                }
+            }
+            if (indexTable.isEmpty()) {
+                return;
+            }
+            try (Statement st = conn.createStatement()) {
+                for (String index : indexTable) {
+                    // ambil nama index asli
+                    String indexName = substringBetween(index, "INDEX ", " ON ");
+                    String newIndexName = indexName + "_" + auditTable;
+
+                    // ambil bagian setelah USING (ignore-case)
+                    String afterUsing = substringAfterIgnoreCase(index, " using ");
+
+                    // build SQL baru
+                    String indexSql = "CREATE INDEX IF NOT EXISTS "
+                            + newIndexName
+                            + " ON " + auditTable
+                            + " USING " + afterUsing;
+
+                    log.trace("create new index → {}", indexSql);
+                    st.addBatch(indexSql);
+                }
+                st.executeBatch();
+            }
+
+
+        } catch (Exception e) {
+            log.error("Error transaction history", e);
+            // ❗ WAJIB claim error supaya SPRING TRANSACTION ROLLBACK
+            throw new AuditHistoryListenerException();
+        }
     }
 
     public String substringAfterIgnoreCase(String text, String search) {

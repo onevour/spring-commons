@@ -1,17 +1,16 @@
 package com.onevour.core.applications.commons;
 
-import org.hibernate.event.spi.PostDeleteEvent;
-import org.hibernate.event.spi.PostUpdateEvent;
 import org.hibernate.event.spi.PreDeleteEvent;
 import org.hibernate.persister.entity.AbstractEntityPersister;
 import org.hibernate.type.Type;
 
 import java.io.Serializable;
 import java.lang.reflect.Field;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 public class DeleteEventIdExtractor {
+
+    protected final Set<String> keyword = new HashSet<>(Arrays.asList("key", "value", "order", "group"));
 
     public Map<String, Object> extractPrimaryKey(PreDeleteEvent event) {
 
@@ -22,8 +21,10 @@ public class DeleteEventIdExtractor {
         // simple @Id
         if (!aep.getIdentifierType().isComponentType()) {
             String col = aep.getIdentifierColumnNames()[0];
-            pk.put(col.toLowerCase(), idObj);
-            // pk.put("original_pk_" + col.toLowerCase(), idObj);
+            if (keyword.contains(col.toLowerCase())) {
+                col = "`" + col + "`";
+            }
+            pk.put(col, idObj);
             return pk;
         }
 
@@ -77,7 +78,10 @@ public class DeleteEventIdExtractor {
                 String[] cols = aep.getPropertyColumnNames(propPath);
                 String col = (cols != null && cols.length > 0) ? cols[0] : f.getName();
 
-                pk.put(col.toLowerCase(), value);
+                if (keyword.contains(col.toLowerCase())) {
+                    col = "`" + col + "`";
+                }
+                pk.put(col, value);
                 // pk.put("original_pk_" + col.toLowerCase(), value);
             } catch (Exception ignored) {
             }
@@ -97,8 +101,10 @@ public class DeleteEventIdExtractor {
                 Object value = f.get(idObj);
                 String[] cols = aep.getPropertyColumnNames(f.getName());
                 String col = (cols != null && cols.length > 0) ? cols[0] : f.getName();
-                pk.put(col.toLowerCase(), value);
-                //pk.put("original_pk_" + col.toLowerCase(), value);
+                if (keyword.contains(col.toLowerCase())) {
+                    col = "`" + col + "`";
+                }
+                pk.put(col, value);
             } catch (Exception ignored) {
             }
         }

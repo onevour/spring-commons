@@ -2,6 +2,6 @@ rootProject.name = 'spring-sdk'
 include 'spring-common'
 include 'spring-common-crypto'
 include 'spring-common-jpa'
-include 'spring-jpa-test'
+include 'spring-jpa-postgres-test'
+include 'spring-jpa-mariadb-test'
 include 'spring-test'
-

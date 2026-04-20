@@ -15,7 +15,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @Slf4j
 @SpringBootApplication
-public class CoreJPAApplication implements CommandLineRunner {
+public class CoreJPAPostgresApplication implements CommandLineRunner {
 
     @Autowired
     ObjectMapper mapper;
@@ -36,7 +36,7 @@ public class CoreJPAApplication implements CommandLineRunner {
     PokemonRestRepository pokemonRestRepository;
 
     public static void main(String[] args) {
-        SpringApplication.run(CoreJPAApplication.class, args);
+        SpringApplication.run(CoreJPAPostgresApplication.class, args);
     }
 
     @Override
