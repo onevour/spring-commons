@@ -1,0 +1,6 @@
+# Konfigurasi build JitPack (https://jitpack.io/docs/BUILDING/)
+# Test dilewati: spring-test butuh jaringan dan spring-common-crypto butuh MinIO.
+jdk:
+  - openjdk11
+install:
+  - ./gradlew clean publishToMavenLocal -x test --no-daemon
