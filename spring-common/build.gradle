@@ -1,6 +1,7 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
+    id 'io.spring.dependency-management'
 }
 
 group = 'com.onevour.core'
@@ -34,23 +35,39 @@ publishing {
     publications {
         gpr(MavenPublication) {
             from(components.java)
+            // versi di POM diambil dari hasil resolusi build ini (versi biasa, bukan strict),
+            // jadi BOM milik pemakai tetap bisa menimpanya
+            versionMapping {
+                usage("java-api") {
+                    fromResolutionResult()
+                }
+                usage("java-runtime") {
+                    fromResolutionResult()
+                }
+            }
         }
     }
 }
 
-dependencies {
-    api platform("org.springframework.boot:spring-boot-dependencies:${versions.springBoot}")
-
-    // commons min version
-    constraints {
-        api "joda-time:joda-time:${versions.joda}"
-        api "commons-io:commons-io:${versions.commonsIO}"
-        api "org.apache.commons:commons-lang3:${versions.commonsLang}"
-        api "org.apache.httpcomponents:httpclient:${versions.httpClient}"
-        api "org.projectlombok:lombok:${versions.lombok}"
-        annotationProcessor "org.projectlombok:lombok:${versions.lombok}"
+// BOM hanya dipakai untuk me-resolve versi saat build library ini.
+// generatedPomCustomization dimatikan supaya BOM TIDAK ikut terbit di POM
+// dan library ini tidak mengunci versi dependency di proyek pemakai.
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:${versions.springBoot}"
     }
+    dependencies {
+        dependency "joda-time:joda-time:${versions.joda}"
+        dependency "commons-io:commons-io:${versions.commonsIO}"
+        dependency "org.apache.commons:commons-lang3:${versions.commonsLang}"
+        dependency "org.apache.httpcomponents:httpclient:${versions.httpClient}"
+    }
+    generatedPomCustomization {
+        enabled = false
+    }
+}
 
+dependencies {
     // springframework
     api "org.springframework:spring-context"
     api "org.springframework:spring-beans"

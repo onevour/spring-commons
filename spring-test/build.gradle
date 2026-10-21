@@ -11,6 +11,15 @@ repositories {
     mavenCentral()
 }
 
+// joda-time dan commons-io tidak ada di BOM Spring Boot; sebagai pemakai spring-common
+// lewat project(), modul ini menentukan versinya sendiri (sama seperti proyek pemakai).
+dependencyManagement {
+    dependencies {
+        dependency "joda-time:joda-time:${versions.joda}"
+        dependency "commons-io:commons-io:${versions.commonsIO}"
+    }
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
     implementation 'org.springframework.boot:spring-boot-starter-web'

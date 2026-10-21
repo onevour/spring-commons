@@ -1,6 +1,7 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
+    id 'io.spring.dependency-management'
 }
 
 group = 'com.onevour.core'
@@ -34,16 +35,33 @@ publishing {
     publications {
         gpr(MavenPublication) {
             from(components.java)
+            // versi di POM diambil dari hasil resolusi build ini (versi biasa, bukan strict),
+            // jadi BOM milik pemakai tetap bisa menimpanya
+            versionMapping {
+                usage("java-api") {
+                    fromResolutionResult()
+                }
+                usage("java-runtime") {
+                    fromResolutionResult()
+                }
+            }
         }
     }
 }
 
-dependencies {
-    api platform("org.springframework.boot:spring-boot-dependencies:${versions.springBoot}")
-    constraints {
-        api "org.projectlombok:lombok:${versions.lombok}"
-        annotationProcessor "org.projectlombok:lombok:${versions.lombok}"
+// BOM hanya dipakai untuk me-resolve versi saat build library ini.
+// generatedPomCustomization dimatikan supaya BOM TIDAK ikut terbit di POM
+// dan library ini tidak mengunci versi dependency di proyek pemakai.
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.boot:spring-boot-dependencies:${versions.springBoot}"
     }
+    generatedPomCustomization {
+        enabled = false
+    }
+}
+
+dependencies {
     api "org.slf4j:slf4j-api"
     // === JPA API (javax, Boot 2.x) ===
     api "javax.persistence:javax.persistence-api"
