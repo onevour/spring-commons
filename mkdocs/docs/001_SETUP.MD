@@ -59,6 +59,7 @@ Begitu `spring-common` ada di classpath, auto-configuration mendaftarkan:
 | `ObjectMapper` | `FAIL_ON_UNKNOWN_PROPERTIES = false`. Dilewati bila proyek sudah punya bean sendiri. |
 | `RestTemplate` bernama `restTemplate` | timeout 12 detik. Dilewati bila proyek sudah punya bean dengan nama itu. |
 | `RestBeanRegistry` | memindai interface turunan `RestRepository` di package aplikasi, lihat bab 03 |
+| `RestRepositoryConfigValidator` | saat startup memastikan semua `${properti}` dan kunci database yang dipakai `RestRepository` ada; matikan dengan `spring-common.rest.validate-on-startup=false` |
 | `MethodHandlerConverter` | aspek yang mengisi parameter `@ConverterResolver` di controller |
 | `ClientManifestResolver` | argument resolver untuk `ClientManifest` dari atribut request `CLIENT_MANIFEST` |
 
@@ -72,7 +73,10 @@ sama seperti Spring Data.
 Jalankan aplikasi dan cari baris log berikut:
 
 ```
-RestBeanRegistry : RestRepository found 2
+RestBeanRegistry              : RestRepository found 2
+RestRepositoryConfigValidator : RestRepository config validated: 5 method(s) in 2 repository(ies)
 ```
 
-Angka itu jumlah interface `RestRepository` yang terdaftar sebagai bean.
+Baris pertama jumlah interface `RestRepository` yang terdaftar sebagai bean, baris kedua tanda
+semua `key`/`url`-nya bisa di-resolve. Bila ada yang kurang, aplikasi berhenti dengan blok
+"APPLICATION FAILED TO START" yang merinci method dan placeholder yang bermasalah.

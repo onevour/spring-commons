@@ -49,6 +49,8 @@ URL akhir = `key` + `url`. Keduanya boleh kosong selama gabungannya URL yang val
 | `D{KUNCI}` atau `d{KUNCI}` | bean `RestConfigBaseKey`, biasanya membaca tabel konfigurasi |
 | teks biasa di `key` yang bukan `http...` | diperlakukan sebagai `D{teks}` |
 
+Nilai yang tidak ditemukan dilaporkan saat startup (lihat *Validasi saat startup* di bawah).
+
 Implementasi `RestConfigBaseKey` cukup satu bean:
 
 ```java
@@ -69,6 +71,50 @@ public class RestConfig {
     }
 }
 ```
+
+### Validasi saat startup
+
+Semua `key` dan `url` di semua `RestRepository` dicek saat aplikasi start, setelah semua bean
+siap tetapi **sebelum web server menerima request**. Mirip Spring memvalidasi
+`@ConfigurationProperties`: bila ada `${properti}` yang tidak ada, kunci database (`D{...}` atau
+tanpa prefix) yang tidak ditemukan, bean `RestConfigBaseKey` tidak ada padahal dipakai, atau
+hasil gabungannya bukan URL http(s) yang valid, aplikasi **tidak jadi up**. Semua masalah
+dilaporkan sekaligus:
+
+```
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Konfigurasi RestRepository belum lengkap, 2 masalah:
+  - com.acme.PaymentRestRepository#charge(): property ${payment.base-url} not found in Environment (...) (key='${payment.base-url}', url='/v1/charge')
+  - com.acme.PaymentRestRepository#refund(): database key 'PAYMENT_REFUND' not found: RestConfigBaseKey returned null/empty (key='PAYMENT_REFUND', url='/v1/refund')
+
+Action:
+
+Lengkapi properti di application.properties/yml atau environment variable untuk ${...}, dan baris
+di tabel konfigurasi (bean RestConfigBaseKey) untuk D{...} atau key tanpa prefix. Untuk
+menonaktifkan sementara: spring-common.rest.validate-on-startup=false
+```
+
+Berhasil ditandai satu baris log:
+
+```
+RestRepositoryConfigValidator : RestRepository config validated: 7 method(s) in 2 repository(ies)
+```
+
+Menonaktifkan validasi (misalnya tabel konfigurasi diisi setelah aplikasi jalan):
+
+```properties
+spring-common.rest.validate-on-startup=false
+```
+
+Dengan validasi mati, nilai yang hilang baru dilaporkan saat method dipanggil, sebagai
+`RestConfigNotFoundException`.
+
+`${...}` juga mendukung nilai default dengan sintaks Spring: `${payment.base-url:http://localhost:8080}`.
 
 ### Timeout
 
@@ -170,7 +216,7 @@ bila ingin kegagalan koneksi masuk ke wrapper.
 ### multipart/form-data
 
 ```java
-@Post(key = "${liveness.url}", url = "/verify", contentType = MediaType.MULTIPART_FORM_DATA_VALUE, read = 60000)
+@Post(key = "${sample.url}", url = "/upload", contentType = MediaType.MULTIPART_FORM_DATA_VALUE, read = 60000)
 ResponseWrapper<LivenessResponse> verify(HttpHeaders headers, MultiValueMap<String, Object> form);
 ```
 
@@ -183,7 +229,7 @@ for (MultipartFile file : files) {
         public String getFilename() { return file.getOriginalFilename(); }
     });
 }
-ResponseWrapper<LivenessResponse> res = livenessRestRepository.verify(headers, form);
+ResponseWrapper<UploadResponse> res = uploadRestRepository.upload(headers, form);
 ```
 
 ### x-www-form-urlencoded

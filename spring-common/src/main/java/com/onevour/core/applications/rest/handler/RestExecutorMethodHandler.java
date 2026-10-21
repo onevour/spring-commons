@@ -6,9 +6,9 @@ import com.onevour.core.applications.commons.ReflectionCommons;
 import com.onevour.core.applications.exceptions.ApiRequestInvalidParameterException;
 import com.onevour.core.applications.exceptions.BadGatewayException;
 import com.onevour.core.applications.rest.annotations.*;
+import com.onevour.core.applications.rest.configuration.RestConfigValueResolver;
 import com.onevour.core.applications.rest.exceptions.HttpMethodNotFoundException;
 import com.onevour.core.applications.rest.model.ResponseWrapper;
-import com.onevour.core.applications.rest.model.RestConfigBaseKey;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
 import org.apache.commons.lang3.StringUtils;
@@ -16,7 +16,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.core.env.Environment;
 import org.springframework.http.*;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.util.Assert;
@@ -41,6 +40,8 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
 
     private final ConfigurableListableBeanFactory beanFactory;
 
+    private final RestConfigValueResolver resolver;
+
     /**
      * RestTemplate per kombinasi timeout (connect/request/read). Dibuat sekali lalu dipakai ulang,
      * tidak lagi didaftarkan sebagai bean (bean "customRequestFactory" yang namanya tetap memicu
@@ -50,6 +51,7 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
 
     public RestExecutorMethodHandler(ConfigurableListableBeanFactory beanFactory) {
         this.beanFactory = beanFactory;
+        this.resolver = new RestConfigValueResolver(beanFactory);
     }
 
     /**
@@ -165,76 +167,11 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
     }
 
     /**
-     * replace base url
-     * if base url hardcode in url param annotation
-     * if base url from properties
-     * if base url from config database field
+     * base url = key + url, di-resolve oleh {@link RestConfigValueResolver} (aturan yang sama
+     * dipakai {@code RestRepositoryConfigValidator} saat startup).
      */
     private String baseURL(String annotationKey, String annotationURL) {
-        StringBuilder url = new StringBuilder();
-        /*
-        if (Objects.isNull(annotationKey) || annotationKey.trim().isEmpty()) {
-            url.append(annotationURL);
-        } else if (annotationKey.trim().startsWith("${") && annotationKey.trim().endsWith("}")) {
-            Environment environment = beanFactory.getBean(Environment.class);
-            String originalKey = annotationKey.trim().replace("${", "").replace("}", "");
-            String urlEnv = environment.getProperty(originalKey);
-            Assert.notNull(urlEnv, "base url cannot be null, key : " + originalKey);
-            url.setLength(0);
-            url.append(urlEnv);
-            url.append(annotationURL);
-            log.trace("key {} value {}", originalKey, urlEnv);
-        } else {
-            boolean exist = !beanFactory.getBeansOfType(RestConfigBaseKey.class).isEmpty();
-            if (exist) {
-                RestConfigBaseKey restConfigBaseKey = beanFactory.getBean(RestConfigBaseKey.class);
-                url.append(restConfigBaseKey.getValue(annotationKey).trim());
-                url.append(annotationURL);
-            }
-        }
-        */
-        url.append(valueExtractor(annotationKey, true));
-        url.append(valueExtractor(annotationURL, false));
-        return url.toString().trim();
-        // Assert.isTrue(isValidUrl(normalizeUrl), "invalid url scheme with string " + normalizeUrl);
-        // return normalizeUrl;
-    }
-
-    private String valueExtractor(String value, boolean tryAsKeyDb) {
-        if (Objects.isNull(value)) {
-            return null;
-        }
-        String valueTrim = value.trim();
-        if (valueTrim.isEmpty()) {
-            return valueTrim;
-        }
-        if (valueTrim.startsWith("${") && valueTrim.endsWith("}")) {
-            String originalKey = valueTrim.replace("${", "").replace("}", "");
-            Environment environment = beanFactory.getBean(Environment.class);
-            String valueEnvironment = environment.getProperty(originalKey);
-            Assert.notNull(valueEnvironment, "base url cannot be null, key : " + originalKey);
-            return valueEnvironment.trim();
-        }
-        if ((valueTrim.startsWith("D{") || valueTrim.startsWith("d{")) && valueTrim.endsWith("}")) {
-            String originalKey = valueTrim.replace("D{", "").replace("d{", "").replace("}", "");
-            Assert.isTrue(!beanFactory.getBeansOfType(RestConfigBaseKey.class).isEmpty(), "RestConfigBaseKey not implement");
-            RestConfigBaseKey restConfigBaseKey = beanFactory.getBean(RestConfigBaseKey.class);
-            String valueDatabase = restConfigBaseKey.getValue(originalKey);
-            Assert.notNull(valueDatabase, "Database rest config table field with key " + originalKey + " cannot be null");
-            return valueDatabase.trim();
-        }
-        if (valueTrim.startsWith("http")) {
-            return valueTrim;
-        }
-        // support lasted version
-        if (tryAsKeyDb) {
-            Assert.isTrue(!beanFactory.getBeansOfType(RestConfigBaseKey.class).isEmpty(), "RestConfigBaseKey not implement");
-            RestConfigBaseKey restConfigBaseKey = beanFactory.getBean(RestConfigBaseKey.class);
-            String valueDatabase = restConfigBaseKey.getValue(value);
-            Assert.notNull(valueDatabase, "Database rest config table field with key " + value + " cannot be null");
-            return valueDatabase.trim();
-        }
-        return valueTrim;
+        return resolver.baseUrl(annotationKey, annotationURL);
     }
 
     public boolean isValidUrl(String url) {
