@@ -18,6 +18,7 @@ Semua konfigurasi dimuat lewat auto-configuration Spring Boot. Tidak ada anotasi
 4. [JPA, audit, dan history](004_JPA.MD)
 5. [Crypto](005_CRYPTO.MD)
 6. [Utilitas](006_UTILITIES.MD)
+7. [Rilis](007_RELEASE.MD)
 
 ## Aplikasi contoh di repo ini
 

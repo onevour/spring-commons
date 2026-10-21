@@ -14,6 +14,7 @@ Kumpulan library untuk mempercepat pembuatan service Spring Boot 2.7 (Java 11).
 4. [JPA, audit, dan history](mkdocs/docs/004_JPA.MD)
 5. [Crypto](mkdocs/docs/005_CRYPTO.MD)
 6. [Utilitas](mkdocs/docs/006_UTILITIES.MD)
+7. [Rilis](mkdocs/docs/007_RELEASE.MD)
 
 Dokumentasi juga bisa dijalankan sebagai situs: `cd mkdocs && mkdocs serve` (butuh `mkdocs-material`).
 
