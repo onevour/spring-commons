@@ -6,66 +6,97 @@ import org.springframework.aop.framework.ProxyFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.type.ClassMetadata;
+import org.springframework.core.type.classreading.CachingMetadataReaderFactory;
 import org.springframework.core.type.classreading.MetadataReader;
-import org.springframework.core.type.classreading.SimpleMetadataReaderFactory;
+import org.springframework.core.type.classreading.MetadataReaderFactory;
+import org.springframework.core.type.filter.AssignableTypeFilter;
+import org.springframework.util.ClassUtils;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 public class BasicRestBuilder {
 
-    protected Set<Class<?>> getAllInterfacesInPackage(Class<?> parentInterface, String... basePackageName) {
-        Set<Class<?>> interfaces = new HashSet<>();
-        Set<String> values = new HashSet<>(Arrays.asList(basePackageName));
-        log.trace("scan found {} packages", values.size());
-        for (String basePackage : values) {
-            SimpleMetadataReaderFactory metadataReaderFactory = new SimpleMetadataReaderFactory();
+    /**
+     * Cari semua interface turunan {@code parentInterface} di dalam {@code basePackages}
+     * dengan membaca bytecode lewat ASM ({@link MetadataReader}), <b>tanpa memuat class</b>.
+     * Hasilnya hanya nama class (String), seperti yang dilakukan Spring Data.
+     * <p>
+     * Resource dan metadata dibaca lewat {@code classLoader} yang diberikan (classloader
+     * context), bukan classloader library, supaya tetap bekerja saat Spring Boot Devtools
+     * memuat class aplikasi lewat RestartClassLoader.
+     */
+    protected Set<String> scanInterfaceNames(Class<?> parentInterface, ClassLoader classLoader, Collection<String> basePackages) {
+        Set<String> names = new LinkedHashSet<>();
+        PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver(classLoader);
+        MetadataReaderFactory metadataReaderFactory = new CachingMetadataReaderFactory(resolver);
+        AssignableTypeFilter filter = new AssignableTypeFilter(parentInterface);
 
-            Resource[] resources = new Resource[0];
+        Set<String> packages = new LinkedHashSet<>(basePackages);
+        log.trace("scan {} packages for {}", packages.size(), parentInterface.getName());
+        for (String basePackage : packages) {
+            String pattern = "classpath*:" + ClassUtils.convertClassNameToResourcePath(basePackage) + "/**/*.class";
+            Resource[] resources;
             try {
-                String packagePath = basePackage.replace('.', '/');
-                String pattern = "classpath*:" + packagePath + "/**/*.class";
-                // scan with pattern
-                log.trace("scan with pattern {}", pattern);
-                resources = new PathMatchingResourcePatternResolver().getResources(pattern);
+                resources = resolver.getResources(pattern);
             } catch (IOException e) {
-                log.error(e.getMessage(), e);
+                log.warn("cannot scan package {} with pattern {}: {}", basePackage, pattern, e.getMessage());
+                continue;
             }
-            List<CompletableFuture<Void>> futures = new java.util.ArrayList<>();
-            log.trace("found resource {}", resources.length);
+            log.trace("scan {} found {} resources", pattern, resources.length);
             for (Resource resource : resources) {
-                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-                    try {
-                        MetadataReader metadataReader = metadataReaderFactory.getMetadataReader(resource);
-                        String packageName = metadataReader.getClassMetadata().getClassName();
-                        log.trace("scan package resource {}", packageName);
-                        Class<?> currentClass = Class.forName(metadataReader.getClassMetadata().getClassName());
-                        if (currentClass.isInterface() && parentInterface.isAssignableFrom(currentClass)) {
-                            interfaces.add(currentClass);
-                        }
-                    } catch (IOException | ClassNotFoundException | LinkageError e) {
-                        // ignore
+                if (!resource.isReadable()) continue;
+                try {
+                    MetadataReader reader = metadataReaderFactory.getMetadataReader(resource);
+                    ClassMetadata metadata = reader.getClassMetadata();
+                    if (!metadata.isInterface()) continue;
+                    if (parentInterface.getName().equals(metadata.getClassName())) continue;
+                    if (filter.match(reader, metadataReaderFactory)) {
+                        log.trace("found {}", metadata.getClassName());
+                        names.add(metadata.getClassName());
                     }
-                });
-                futures.add(future);
+                } catch (IOException e) {
+                    // jangan ditelan diam-diam: masalah classpath harus langsung terlihat
+                    log.warn("cannot read class metadata from {}: {}", resource, e.getMessage());
+                }
             }
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        }
+        return names;
+    }
+
+    /**
+     * @deprecated memuat class lewat classloader pemanggil (library), sehingga interface
+     * aplikasi tidak ditemukan saat Devtools aktif. Pakai {@link #scanInterfaceNames} dan
+     * biarkan {@link RestRepositoryFactoryBean} memuat class lewat classloader context.
+     */
+    @Deprecated
+    protected Set<Class<?>> getAllInterfacesInPackage(Class<?> parentInterface, String... basePackageName) {
+        ClassLoader classLoader = ClassUtils.getDefaultClassLoader();
+        Set<Class<?>> interfaces = new LinkedHashSet<>();
+        for (String name : scanInterfaceNames(parentInterface, classLoader, Arrays.asList(basePackageName))) {
+            try {
+                interfaces.add(ClassUtils.forName(name, classLoader));
+            } catch (ClassNotFoundException | LinkageError e) {
+                log.warn("cannot load {}: {}", name, e.toString());
+            }
         }
         return interfaces;
     }
 
     protected Object createProxyBean(Class<?> beanClass, ConfigurableListableBeanFactory beanFactory) {
+        return createProxyBean(beanClass, beanFactory, beanFactory.getBeanClassLoader());
+    }
+
+    protected Object createProxyBean(Class<?> beanClass, ConfigurableListableBeanFactory beanFactory, ClassLoader classLoader) {
         ProxyFactory proxyFactory = new ProxyFactory();
-        // use scanner spring
         proxyFactory.addInterface(beanClass);
-        // advisor
         proxyFactory.addAdvice(new RestExecutorMethodHandler(beanFactory));
-        return proxyFactory.getProxy();
+        return proxyFactory.getProxy(classLoader);
     }
 
     protected String variableName(String input) {
@@ -74,67 +105,5 @@ public class BasicRestBuilder {
         }
         return Character.toLowerCase(input.charAt(0)) + input.substring(1);
     }
-
-    /*
-    protected Set<String> groupNameMainApplication() {
-
-        Set<String> excludes = new HashSet<>();
-        excludes.add("com.onevour.core");
-        excludes.add("com.sun");
-        excludes.add("java.util");
-        excludes.add("java.lang");
-        excludes.add("org.springframework");
-        excludes.add("jdk.internal");
-        excludes.add("worker.org.gradle");
-        excludes.add("org.junit");
-
-        Set<String> values = new HashSet<>();
-        for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
-            try {
-                Class<?> cls = Class.forName(element.getClassName());
-                Package packageTmp = cls.getPackage();
-                log.info("start scan {}", packageTmp);
-                if (Objects.isNull(packageTmp)) continue;
-                String packageName = packageTmp.getName();
-
-                if (excludes.stream().anyMatch(o -> {
-                    boolean res = packageName.startsWith(o);
-                    log.trace("{} start with {} result {}", o, packageName, res);
-                    return res;
-                })) {
-                    log.trace("skip package {}", packageName);
-                    continue;
-                }
-                if (hasMainMethod(cls)) {
-                    values.add(packageName);
-                    log.info("package scan {} has main", packageTmp);
-                    continue;
-                }
-                if (isSpringBootMain(cls)) {
-                    values.add(packageName);
-                    log.info("package scan {} is SpringBootMain", packageTmp);
-                    continue;
-                }
-                log.trace("package scan {} main not found", packageTmp);
-            } catch (ClassNotFoundException e) {
-                // Abaikan error dan lanjutkan iterasi
-            }
-        }
-        return values;
-    }
-
-    private boolean hasMainMethod(Class<?> cls) {
-        try {
-            cls.getDeclaredMethod("main", String[].class);
-            return true;
-        } catch (NoSuchMethodException e) {
-            return false;
-        }
-    }
-
-    private boolean isSpringBootMain(Class<?> cls) {
-        return cls.isAnnotationPresent(org.springframework.boot.autoconfigure.SpringBootApplication.class);
-    }
-    */
 
 }

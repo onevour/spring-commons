@@ -5,59 +5,124 @@ import com.onevour.core.applications.rest.repository.RestRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanDefinition;
-import org.springframework.beans.factory.config.BeanFactoryPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.support.BeanDefinitionBuilder;
+import org.springframework.beans.factory.support.BeanDefinitionRegistry;
+import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
+import org.springframework.boot.autoconfigure.AutoConfigurationPackages;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.ClassUtils;
 
-import java.util.Objects;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
+/**
+ * Mendaftarkan setiap interface turunan {@link RestRepository} di package aplikasi
+ * sebagai bean, dengan pola yang sama seperti Spring Data:
+ * <ol>
+ *   <li>package diambil dari {@link AutoConfigurationPackages} (String), bukan dari
+ *       {@code Class.forName} bean {@code @SpringBootApplication} yang bisa berupa class CGLIB;</li>
+ *   <li>interface ditemukan dengan membaca bytecode (ASM) tanpa memuat class;</li>
+ *   <li>yang didaftarkan adalah {@link BeanDefinition} berisi {@link RestRepositoryFactoryBean}
+ *       dengan nama interface, sehingga class baru dimuat saat bean dibuat lewat classloader context.</li>
+ * </ol>
+ */
 @Slf4j
 @Configuration
-public class RestBeanRegistry extends BasicRestBuilder implements BeanFactoryPostProcessor, ApplicationContextAware {
-
-    private ApplicationContext applicationContext;
+public class RestBeanRegistry extends BasicRestBuilder implements BeanDefinitionRegistryPostProcessor {
 
     @Override
-    public void setApplicationContext(ApplicationContext applicationContext) {
-        this.applicationContext = applicationContext;
+    public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) throws BeansException {
+        if (!(registry instanceof ConfigurableListableBeanFactory)) {
+            log.warn("BeanDefinitionRegistry {} is not a ConfigurableListableBeanFactory, RestRepository scan skipped", registry.getClass().getName());
+            return;
+        }
+        ConfigurableListableBeanFactory beanFactory = (ConfigurableListableBeanFactory) registry;
+        ClassLoader classLoader = beanFactory.getBeanClassLoader();
+        if (classLoader == null) {
+            classLoader = ClassUtils.getDefaultClassLoader();
+        }
+
+        Set<String> packages = basePackages(beanFactory);
+        if (packages.isEmpty()) {
+            log.warn("no base package found (AutoConfigurationPackages / @SpringBootApplication), RestRepository scan skipped");
+            return;
+        }
+        log.debug("scan RestRepository in packages {} with classloader {}", packages, classLoader);
+
+        Set<String> names = scanInterfaceNames(RestRepository.class, classLoader, packages);
+        int registered = 0;
+        for (String className : names) {
+            String beanName = beanName(registry, className);
+            if (beanName == null) continue;
+            BeanDefinition definition = BeanDefinitionBuilder
+                    .genericBeanDefinition(RestRepositoryFactoryBean.class)
+                    .addConstructorArgValue(className)
+                    .setLazyInit(false)
+                    .getBeanDefinition();
+            registry.registerBeanDefinition(beanName, definition);
+            registered++;
+            log.trace("register RestRepository {} as bean {}", className, beanName);
+        }
+        log.info("RestRepository found {}", registered);
     }
 
     @Override
     public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) throws BeansException {
-        if (Objects.isNull(applicationContext)) {
-            log.warn("ApplicationContext still null");
-            return;
-        }
-        extractedFromContext(beanFactory);
+        // semua pekerjaan dilakukan di postProcessBeanDefinitionRegistry
     }
 
-    private void extractedFromContext(ConfigurableListableBeanFactory beanFactory) {
-        int size = 0;
-        String[] beanNames = applicationContext.getBeanNamesForAnnotation(SpringBootApplication.class);
-        for (String beanName : beanNames) {
-            ConfigurableApplicationContext configurableApplicationContext = (ConfigurableApplicationContext) applicationContext;
-            BeanDefinition beanDefinition = configurableApplicationContext.getBeanFactory().getBeanDefinition(beanName);
-            String className = beanDefinition.getBeanClassName();
-            try {
-                Class<?> beanClass = Class.forName(className);
-                String packageName = beanClass.getPackage().getName();
-                Set<Class<?>> classes = getAllInterfacesInPackage(RestRepository.class, packageName);
-                size += classes.size();
-                for (Class<?> c : classes) {
-                    Object o = createProxyBean(c, beanFactory);
-                    beanFactory.registerSingleton(variableName(c.getSimpleName()), o);
-                    beanFactory.autowireBean(o);
-                }
-                log.trace("package scan {}", packageName);
-            } catch (ClassNotFoundException ignore) {
-
-            }
+    /**
+     * Package aplikasi, seperti Spring Data: dari {@link AutoConfigurationPackages}.
+     * Fallback: package dari nama class bean {@code @SpringBootApplication}
+     * (operasi String saja, tidak memuat class; suffix CGLIB tidak mengubah package).
+     */
+    private Set<String> basePackages(ConfigurableListableBeanFactory beanFactory) {
+        Set<String> packages = new LinkedHashSet<>();
+        if (AutoConfigurationPackages.has(beanFactory)) {
+            packages.addAll(AutoConfigurationPackages.get(beanFactory));
         }
-        log.info("RestRepository found {}", size);
+        if (!packages.isEmpty()) {
+            return packages;
+        }
+        for (String beanName : beanFactory.getBeanNamesForAnnotation(SpringBootApplication.class)) {
+            String className = beanFactory.getBeanDefinition(beanName).getBeanClassName();
+            if (className == null) continue;
+            packages.add(ClassUtils.getPackageName(className));
+        }
+        return packages;
+    }
+
+    /**
+     * Setara {@code Class.getSimpleName()} tanpa memuat class: bagian setelah '.' atau '$' terakhir.
+     */
+    private static String simpleName(String className) {
+        int index = Math.max(className.lastIndexOf('.'), className.lastIndexOf('$'));
+        return index < 0 ? className : className.substring(index + 1);
+    }
+
+    /**
+     * Nama bean = simple name dengan huruf pertama kecil (perilaku lama).
+     * Jika sudah dipakai interface lain, pakai nama lengkap supaya tidak saling timpa.
+     */
+    private String beanName(BeanDefinitionRegistry registry, String className) {
+        String shortName = variableName(simpleName(className));
+        if (!registry.containsBeanDefinition(shortName)) {
+            return shortName;
+        }
+        BeanDefinition existing = registry.getBeanDefinition(shortName);
+        if (RestRepositoryFactoryBean.class.getName().equals(existing.getBeanClassName())
+                && existing.getConstructorArgumentValues().getIndexedArgumentValue(0, String.class) != null
+                && className.equals(existing.getConstructorArgumentValues().getIndexedArgumentValue(0, String.class).getValue())) {
+            log.debug("RestRepository {} already registered as {}", className, shortName);
+            return null;
+        }
+        if (registry.containsBeanDefinition(className)) {
+            log.debug("RestRepository {} already registered", className);
+            return null;
+        }
+        log.warn("bean name {} already used by {}, register RestRepository {} with its full name", shortName, existing.getBeanClassName(), className);
+        return className;
     }
 }
