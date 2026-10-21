@@ -1,4 +1,4 @@
-site_name: SDK Common
+site_name: Spring SDK
 
 theme:
   name: material
@@ -6,9 +6,11 @@ theme:
     - navigation.sections
     - navigation.expand
 
-
 nav:
-  - Home: README.MD
+  - Home: README.md
   - Setup: 001_SETUP.MD
   - MVC: 002_MVC.MD
-  - Rest Repository: 003_REST_REPOSITORY.MD
+  - RestRepository: 003_REST_REPOSITORY.MD
+  - JPA, audit & history: 004_JPA.MD
+  - Crypto: 005_CRYPTO.MD
+  - Utilitas: 006_UTILITIES.MD

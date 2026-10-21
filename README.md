@@ -1,13 +1,22 @@
 # Spring SDK
 
-## Library
-- spring-common
-- spring-common-jpa
+Kumpulan library untuk mempercepat pembuatan service Spring Boot 2.7 (Java 11).
 
-## setup
-1. [Setup](001_SETUP.MD)
-2. [Model View Controller (MVC)](002_MVC.MD)
-3. [RestRepository](003_REST_REPOSITORY.MD)
+## Library
+- `spring-common`: pola MVC, RestRepository (klien HTTP deklaratif), utilitas
+- `spring-common-jpa`: entity dasar dengan kolom audit, history otomatis ke tabel `_his`
+- `spring-common-crypto`: AES dan RSA dengan pemuat kunci dari string, Base64, file, atau MinIO
+
+## Tutorial
+1. [Setup](mkdocs/docs/001_SETUP.MD)
+2. [Model View Controller (MVC)](mkdocs/docs/002_MVC.MD)
+3. [RestRepository](mkdocs/docs/003_REST_REPOSITORY.MD)
+4. [JPA, audit, dan history](mkdocs/docs/004_JPA.MD)
+5. [Crypto](mkdocs/docs/005_CRYPTO.MD)
+6. [Utilitas](mkdocs/docs/006_UTILITIES.MD)
+
+Dokumentasi juga bisa dijalankan sebagai situs: `cd mkdocs && mkdocs serve` (butuh `mkdocs-material`).
+
 ## Pakai lewat JitPack
 
 Library ini dipublikasikan lewat [JitPack](https://jitpack.io) dari repo

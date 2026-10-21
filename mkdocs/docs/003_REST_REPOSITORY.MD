@@ -1,45 +1,62 @@
-# 03. Rest Repository
+# 03. RestRepository
 
-### Repository
-requirement `interface`
-- [RestRepository](../../spring-common/src/main/java/com/asliri/core/applications/rest/repository/RestRepository.java)
+Klien HTTP deklaratif: tulis interface, beri anotasi, dan library yang membuat proxy-nya.
+Mirip Feign, tetapi berbasis `RestTemplate` dan tanpa konfigurasi tambahan.
 
-support method
-- [@Get](../../spring-common/src/main/java/com/asliri/core/applications/rest/annotations/Get.java)
-- [@Post](../../spring-common/src/main/java/com/asliri/core/applications/rest/annotations/Post.java)
-- [@Put](../../spring-common/src/main/java/com/asliri/core/applications/rest/annotations/Put.java)
-- [@Patch](../../spring-common/src/main/java/com/asliri/core/applications/rest/annotations/Patch.java)
-- [@Delete](../../spring-common/src/main/java/com/asliri/core/applications/rest/annotations/Delete.java)
+## Mendefinisikan repository
 
-annotation method parameter
+```java
+public interface PokemonRestRepository extends RestRepository {
 
+    @Get(url = "https://pokeapi.co/api/v2/pokemon/ditto")
+    String ditto();
 
-| Parameter         | Default Value             | Description 
-|-------------------|---------------------------|-------------
-| `key`               | ""                        | 
-| `url`               | ""                        | 
-| `connect`           | -1                        | timeout create connection
-| `request`           | -1                        | timeout upload/transfer body
-| `read`              | -1                        | timeout read response
-| `contentType`       | application/json          | 
-| `throwException`    | true                      | 
+    @Get(url = "https://pokeapi.co/api/v2/pokemon/{name}")
+    ResponseWrapper<PokemonResponse> byName(@PathVariable("name") String name);
 
+    @Post(key = "${payment.base-url}", url = "/v1/charge", read = 30000)
+    ResponseWrapper<ChargeResponse> charge(HttpHeaders headers, ChargeRequest body);
+}
+```
 
-### arg key
+Syaratnya hanya dua: interface `extends RestRepository` dan berada di package aplikasi
+(package kelas `@SpringBootApplication` atau di bawahnya). Interface terdaftar sebagai bean
+dengan nama simple name berawalan huruf kecil (`pokemonRestRepository`) dan bisa di-`@Autowired`
+seperti biasa.
 
-| Placeholder (key & url)          | Description                                                         
-|----------------------------------|---------------------------------------------------------------------
-| `PLAIN TEXT`                     | read from plain text                                                
-| `${app.value}`                   | read from evironment variable/application.properties/application.yml 
-| `D{app.value}` or `d{app.value}` | read from datasource `app.value` as key [RestConfigBaseKey](../../spring-common/src/main/java/com/asliri/core/applications/rest/model/RestConfigBaseKey.java)                 
+## Anotasi method
 
-implement [RestConfigBaseKey](../../spring-common/src/main/java/com/asliri/core/applications/rest/model/RestConfigBaseKey.java)
+`@Get`, `@Post`, `@Put`, `@Patch`, `@Delete`, semua dengan atribut yang sama:
+
+| Atribut | Default | Keterangan |
+|---|---|---|
+| `key` | `""` | base URL, lihat placeholder di bawah |
+| `url` | `""` | path atau URL lengkap, boleh berisi `{pathVariable}` |
+| `connect` | -1 | timeout membuka koneksi (ms) |
+| `request` | -1 | timeout menunggu koneksi dari pool (ms) |
+| `read` | -1 | timeout membaca response (ms) |
+| `contentType` | `application/json` | header `Content-Type` |
+| `throwException` | `true` | perilaku saat server tidak bisa dihubungi, lihat *Menangani response* |
+
+URL akhir = `key` + `url`. Keduanya boleh kosong selama gabungannya URL yang valid.
+
+### Placeholder untuk `key` dan `url`
+
+| Bentuk | Sumber nilai |
+|---|---|
+| `https://...` atau teks biasa di `url` | dipakai apa adanya |
+| `${nama.properti}` | `Environment` (application.properties/yml, env var). Error saat dipanggil bila properti tidak ada. |
+| `D{KUNCI}` atau `d{KUNCI}` | bean `RestConfigBaseKey`, biasanya membaca tabel konfigurasi |
+| teks biasa di `key` yang bukan `http...` | diperlakukan sebagai `D{teks}` |
+
+Implementasi `RestConfigBaseKey` cukup satu bean:
+
 ```java
 @Configuration
 public class RestConfig {
 
     @Autowired
-    ConfigRepository configRepository; // any repository table configuration
+    ConfigRepository configRepository;
 
     @Bean
     public RestConfigBaseKey restConfigBaseKey() {
@@ -53,158 +70,135 @@ public class RestConfig {
 }
 ```
 
-### arg url
+### Timeout
 
-support uri template
-- @PathVariable
+- Semua timeout `<= 0` (default): memakai bean `restTemplate` (bawaan 12 detik, atau bean milik proyek).
+- Ada yang `> 0`: dibuat `RestTemplate` khusus untuk kombinasi timeout itu, dipakai ulang (cache),
+  dan nilai dipakai apa adanya. `read = 2000` benar-benar 2 detik.
 
-example
+## Parameter method
 
-```java
+Parameter dikenali dari tipe dan anotasinya, urutannya bebas:
 
-@Get(key = "https://pokeapi.co/api/v2/pokemon", url = "/{name}")
-Object result = callHardcodeWithPathVariable(@PathVariable("name") String name);
+| Parameter | Diperlakukan sebagai |
+|---|---|
+| `HttpHeaders` | header request. Objek disalin dulu, jadi milik pemanggil tidak berubah. |
+| `@PathVariable("name") T` | mengganti `{name}` di URL. Nilai di-URL-encode sebagai segmen path. |
+| parameter lain (tanpa anotasi) | body request |
 
-@Get(url = "https://pokeapi.co/api/v2/pokemon/{name}")
-Object result = callHardcodeWithPathVariable(@PathVariable("name") String name);
-```
-## Method Argument
-- [HttpHeaders](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/http/HttpHeaders.html)
-- [PathVariable](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/bind/annotation/PathVariable.html)
-- Object as request body
+Hanya satu body per method. Untuk `multipart/form-data` dan `x-www-form-urlencoded`, body berupa
+`MultiValueMap<String, Object>`.
 
-## Handling Response
+### GET dengan objek sebagai query string
 
-exception based on parameter `throwException`
-
-- [HttpStatusCodeException](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/client/HttpStatusCodeException.html)
-- [ResourceAccessException](https://docs.spring.io/spring-framework/docs/current/javadoc-api/org/springframework/web/client/ResourceAccessException.html)
-- [BadGatewayException](../../spring-common/src/main/java/com/asliri/core/applications/exceptions/BadGatewayException.java)
+Pada `@Get`, parameter body diubah menjadi query string dari field objeknya:
 
 ```java
-// snippet handling error rest executor
-
-} catch (HttpStatusCodeException e) {
-    String bodyErrorString = e.getResponseBodyAsString();
-    if (isRestResultParameterize) {
-        return new ResponseWrapper<>(e);
-    }
-    log.error("error code {}, {}, body: {}", e.getStatusCode(), e.getStatusText(), bodyErrorString);
-    throw e;
-} catch (ResourceAccessException e) {
-    if (isThrowResourceAccessException) {
-        throw new BadGatewayException();
-    }
-    if (isRestResultParameterize) return new ResponseWrapper<>(e);
-    log.error("resource access exception {}", e.getMessage());
-    throw e;
+@Data
+public class SearchRequest {
+    String keyword;
+    Integer page;
+    Integer size;
 }
 
+@Get(url = "https://api.example.com/search")
+ResponseWrapper<SearchResult> search(SearchRequest request);
+// → GET https://api.example.com/search?keyword=a%20b&page=1&size=20
 ```
 
+Field bernilai `null` dilewati, field `static` diabaikan, dan nilai di-URL-encode.
+Query string yang sudah ada di `url` dipertahankan, parameter berikutnya disambung dengan `&`.
+Untuk POST/PUT/PATCH/DELETE query string di `url` juga dipertahankan.
 
-response object/model
-- generic object
-- [ResponseWrapper](../../spring-common/src/main/java/com/asliri/core/applications/rest/model/ResponseWrapper.java)
-  
-| response         | result                              | Description
-|------------------|-------------------------------------|-------------
-| generic object   | convert response to result object   |  `throwException=true`, use global handling `@RestControllerAdvice`   
-| ResponseWrapper  | convert response to ResponseWrapper | `ResponseWrapper` support supplier handling
+## Tipe kembalian dan penanganan response
 
-snipet supplier `ResponseWrapper.java`
+Ada dua gaya:
+
+### 1. Tipe langsung (`String`, `MyResponse`, `List<MyResponse>`)
+
+Body di-deserialisasi ke tipe itu. Kegagalan dilempar sebagai exception:
+
+| Kondisi | Exception |
+|---|---|
+| HTTP 4xx/5xx | `HttpStatusCodeException` (`HttpClientErrorException`/`HttpServerErrorException`), body error ada di `getResponseBodyAsString()` |
+| timeout, DNS, connection refused, `throwException = true` | `BadGatewayException` dengan cause `ResourceAccessException` |
+| sama, `throwException = false` | `ResourceAccessException` asli |
+
+Tangani secara global dengan `@RestControllerAdvice`.
+
+### 2. `ResponseWrapper<T>`
+
+Tidak melempar exception untuk HTTP 4xx/5xx. Semua informasi ada di wrapper:
 
 ```java
-public <X extends Throwable> T bodyOrElseThrow(Supplier<? extends X> exceptionSupplier) throws X {
-    return Optional.ofNullable(body).orElseThrow(exceptionSupplier);
-}
+ResponseWrapper<PokemonResponse> res = pokemonRestRepository.byName("ditto");
 
-public <X extends Throwable> T bodyOrElseThrow(Supplier<? extends X> exceptionSupplier, int... codes) throws X {
-    boolean codeMatch = isCodeMatch(codes);
-    if (isError() && codeMatch) throw exceptionSupplier.get();
-    return Optional.ofNullable(body).orElseThrow(exceptionSupplier);
+if (res.isSuccess()) {                       // code 2xx
+    PokemonResponse body = res.getBody();
 }
-
-public <X extends Throwable> void isErrorAndThrow(int... codes) throws X {
-    boolean codeMatch = isCodeMatch(codes);
-    if (isError() && codeMatch) throw exception;
-}
-
-public <X extends Throwable> void isErrorAndThrow(Supplier<? extends X> exceptionSupplier) throws X {
-    if (isError()) throw exceptionSupplier.get();
-}
-
-public <X extends Throwable> void isErrorAndThrow(Supplier<? extends X> exceptionSupplier, int... codes) throws X {
-    boolean codeMatch = isCodeMatch(codes);
-    if (isError() && codeMatch) throw exceptionSupplier.get();
-}
+res.getCode();                               // HTTP status, 502 bila server tak terjangkau
+res.getHeaders();
+res.getExceptionBodyAsText();                // body error mentah dari server
+res.getException();                          // HttpStatusCodeException, bila ada
+res.isErrorResourceAccessException();        // true bila timeout/DNS/refused (butuh throwException = false)
 ```
 
-## Example
-
-### Json
-default content type `application/json`
+Helper bergaya `Optional`:
 
 ```java
-public interface PokemonRestRepository extends RestRepository {
-    
-    @Get(url = "https://pokeapi.co/api/v2/pokemon/ditto")
-    String callHardcode();
+// body, atau lempar exception yang tercatat (HttpStatusCodeException / ResourceAccessException);
+// bila body null tanpa exception (mis. 204) lempar IllegalStateException
+PokemonResponse body = res.bodyOrElseThrow();
 
-    @Get(url = "https://pokeapi.co/api/v2/pokemon/{name}")
-    String callHardcodeWithParam(@PathVariable("name") String name);
+// body, atau exception milik Anda
+PokemonResponse body = res.bodyOrElseThrow(() -> new NotFoundException("pokemon"));
 
-    @Get(key = "https://pokeapi.co/api/v2", url = "/pokemon/ditto")
-    String callHardcodeCombine();
+// exception milik Anda hanya untuk kode tertentu
+PokemonResponse body = res.bodyOrElseThrow(() -> new NotFoundException("pokemon"), 404);
 
-    @Get(key = "${pokemon.base}", url = "${pokemon.ditto}")
-    String callEnvironment();
+res.isErrorAndThrow(() -> new UpstreamException());       // bila error apa pun
+res.isErrorAndThrow(() -> new UpstreamException(), 401, 403);
+res.isErrorResourceAccessExceptionThrow();                // lempar ResourceAccessException bila ada
+```
 
-    @Get(key = "${pokemon.base}", url = "/pokemon/ditto")
-    ResponseWrapper<String> callEnvironmentCombine();
+Catatan: dengan `throwException = true` (default), kegagalan koneksi tetap dilempar sebagai
+`BadGatewayException` meskipun tipe kembaliannya `ResponseWrapper`. Set `throwException = false`
+bila ingin kegagalan koneksi masuk ke wrapper.
 
-    @Get(key = "D{POKEMON}", url = "D{POKEMON_DITTO}")
-    ResponseWrapper<String> callDatabase();
+## Contoh content type lain
 
-    @Get(key = "D{POKEMON}", url = "/pokemon/ditto")
-    ResponseWrapper<String> callDatabaseCombine();
+### multipart/form-data
 
-    @Get(key = "POKEMON", url = "/pokemon/ditto")
-    ResponseWrapper<String> callDatabaseAsKey();
+```java
+@Post(key = "${liveness.url}", url = "/verify", contentType = MediaType.MULTIPART_FORM_DATA_VALUE, read = 60000)
+ResponseWrapper<LivenessResponse> verify(HttpHeaders headers, MultiValueMap<String, Object> form);
+```
+
+```java
+MultiValueMap<String, Object> form = new LinkedMultiValueMap<>();
+form.set("trx_id", trxId);
+for (MultipartFile file : files) {
+    form.add("file", new ByteArrayResource(file.getBytes()) {
+        @Override
+        public String getFilename() { return file.getOriginalFilename(); }
+    });
 }
+ResponseWrapper<LivenessResponse> res = livenessRestRepository.verify(headers, form);
+```
 
-```
-### Multipart
-content type `multipart/form-data`
+### x-www-form-urlencoded
+
 ```java
-    @Post(key = "${liveness.active.url}", url = "/", contentType = MediaType.MULTIPART_FORM_DATA_VALUE, read = 60000)
-    ResponseWrapper<VerifyLivenessActiveResponse> livenessActive(HttpHeaders headers, MultiValueMap<String, Object> request);
+@Post(url = "https://httpbin.org/post", contentType = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+String urlEncoded(MultiValueMap<String, Object> form);
 ```
-```java
-    // build body
-    MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-    body.set("trx_id", request.getTrxId());
-    body.add("gestureset", request.getGesturesSet());
-    for (MultipartFile file : request.getFile()) {
-        // create binary payload
-        body.add("file", new ByteArrayResource(file.getBytes()) {
-            @Override
-            public String getFilename() {
-                return file.getName();
-            }
-        });
-    }
-    ResponseWrapper<VerifyLivenessActiveResponse> responseWrapper = agrOnboardingRestRepository.livenessActive( body);
-```
-### Form Urlencoded
-content type `x-www-form-urlencoded`
-```java
-    @Post(url = "https://httpbin.org/post",  contentType = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    String urlEncoder(MultiValueMap form);
-```
-```java
-    MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
-    body.set("name", "john doe");
-    body.add("date", "today");
-    String response = httpBinRestRepository.urlEncoder(body);
-```
+
+## Cara kerja singkat
+
+`RestBeanRegistry` memindai bytecode package aplikasi, mendaftarkan `RestRepositoryFactoryBean`
+per interface, dan class baru dimuat saat bean dibuat lewat classloader context. Karena itu
+repository tetap ditemukan saat Spring Boot Devtools aktif. Setiap pemanggilan method diproses
+`RestExecutorMethodHandler` yang membangun `ApiRequest` lalu memanggil `RestTemplate`.
+
+Dua interface dengan simple name sama di package berbeda tetap terdaftar: yang kedua memakai
+nama lengkapnya sebagai nama bean, disertai peringatan di log.
