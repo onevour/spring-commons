@@ -62,16 +62,25 @@ public class ResponseWrapper<T> {
         this.code = 502;
     }
 
+    /**
+     * sukses hanya untuk kode 2xx; kode 0 (tidak ada response) dan selain 2xx dianggap error,
+     * sehingga {@link #isSuccess()} dan {@link #isError()} tidak pernah sama-sama true
+     */
     public boolean isSuccess() {
-        return code >= 0 && code <= 300;
+        return code >= 200 && code < 300;
     }
 
     public boolean isError() {
-        return code == 0 || code >= 300;
+        return !isSuccess();
     }
 
+    /**
+     * body, atau lempar exception yang tercatat: {@link HttpStatusCodeException},
+     * lalu {@link ResourceAccessException}; bila tidak ada (mis. 204 tanpa body)
+     * lempar {@link IllegalStateException} dengan pesan yang jelas, bukan {@code null}
+     */
     public <X extends Throwable> T bodyOrElseThrow() throws X {
-        if (Objects.isNull(body)) throw exception;
+        if (Objects.isNull(body)) throw defaultException();
         return body;
     }
 
@@ -90,7 +99,7 @@ public class ResponseWrapper<T> {
      */
     public <X extends Throwable> void isErrorAndThrow(int... codes) throws X {
         boolean codeMatch = isCodeMatch(codes);
-        if (isError() && codeMatch) throw exception;
+        if (isError() && codeMatch) throw defaultException();
     }
 
     public <X extends Throwable> void isErrorAndThrow(Supplier<? extends X> exceptionSupplier) throws X {
@@ -111,6 +120,12 @@ public class ResponseWrapper<T> {
         return Objects.nonNull(resourceAccessException);
     }
 
+
+    private RuntimeException defaultException() {
+        if (Objects.nonNull(exception)) return exception;
+        if (Objects.nonNull(resourceAccessException)) return resourceAccessException;
+        return new IllegalStateException("response body is null and no exception recorded, http code " + code + (Objects.isNull(message) ? "" : " " + message));
+    }
 
     private boolean isCodeMatch(int[] codes) {
         boolean codeMatch = false;

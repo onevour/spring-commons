@@ -122,17 +122,17 @@ public abstract class BaseService {
             ResponseEntity<T> response = null;
             if (HttpMethod.GET == request.getMethod()) {
                 if (Objects.isNull(request.getClassResponse())) {
-                    response = restTemplate.exchange(request.getUrl(), HttpMethod.GET, new HttpEntity<>(request.getHeaders()), request.getParameterizedResponse());
+                    response = restTemplate.exchange(request.getUri(), HttpMethod.GET, new HttpEntity<>(request.getHeaders()), request.getParameterizedResponse());
                 }
                 if (Objects.isNull(request.getParameterizedResponse())) {
-                    response = restTemplate.exchange(request.getUrl(), HttpMethod.GET, new HttpEntity<>(request.getHeaders()), request.getClassResponse());
+                    response = restTemplate.exchange(request.getUri(), HttpMethod.GET, new HttpEntity<>(request.getHeaders()), request.getClassResponse());
                 }
             } else {
                 if (Objects.isNull(request.getClassResponse())) {
-                    response = restTemplate.exchange(request.getUrl(), request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), request.getParameterizedResponse());
+                    response = restTemplate.exchange(request.getUri(), request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), request.getParameterizedResponse());
                 }
                 if (Objects.isNull(request.getParameterizedResponse())) {
-                    response = restTemplate.exchange(request.getUrl(), request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), request.getClassResponse());
+                    response = restTemplate.exchange(request.getUri(), request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), request.getClassResponse());
                 }
             }
             if (Objects.isNull(response)) return null;
@@ -142,7 +142,7 @@ public abstract class BaseService {
             throw e;
         } catch (ResourceAccessException e) {
             log.error("error access external", e);
-            throw new BadGatewayException();
+            throw new BadGatewayException("bad gateway: " + e.getMessage(), e);
         }
     }
 

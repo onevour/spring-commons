@@ -4,15 +4,18 @@ import com.onevour.core.applications.exceptions.ApiRequestInvalidParameterExcept
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.web.util.UriUtils;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.lang.reflect.Type;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -49,6 +52,31 @@ public class ApiRequest {
 
     public <T> Class<T> getClassResponse() {
         return clazzResponse;
+    }
+
+    /**
+     * URL yang sudah ter-encode sebagai {@link URI}. Pakai ini saat memanggil
+     * {@code RestTemplate.exchange(URI, ...)} supaya nilai path/query yang sudah
+     * di-encode tidak di-encode ulang oleh {@code UriTemplateHandler} milik RestTemplate
+     * (mis. {@code %20} menjadi {@code %2520}).
+     */
+    public URI getUri() {
+        return URI.create(url);
+    }
+
+    /**
+     * Encode satu segmen path (UTF-8), mis. nilai {@code @PathVariable}.
+     * Karakter yang punya arti khusus di path ({@code / ? # {}} dan spasi) ikut di-encode.
+     */
+    public static String encodePathSegment(Object value) {
+        return UriUtils.encodePathSegment(String.valueOf(value), StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Encode nama atau nilai parameter query (UTF-8), mis. {@code &} dan {@code =}.
+     */
+    public static String encodeQueryParam(Object value) {
+        return UriUtils.encodeQueryParam(String.valueOf(value), StandardCharsets.UTF_8);
     }
 
     private ApiRequest(Builder builder) {
@@ -149,8 +177,16 @@ public class ApiRequest {
             return this;
         }
 
+        /**
+         * Header milik pemanggil disalin (termasuk list nilainya) supaya tidak ikut
+         * termutasi saat builder menambah atau mengganti header (mis. Content-Type).
+         */
         public Builder setHeaders(HttpHeaders headers) {
-            this.headers = headers;
+            HttpHeaders copy = new HttpHeaders();
+            if (Objects.nonNull(headers)) {
+                headers.forEach((key, values) -> copy.put(key, new ArrayList<>(values)));
+            }
+            this.headers = copy;
             return this;
         }
 
@@ -225,9 +261,12 @@ public class ApiRequest {
             return build();
         }
 
+        /**
+         * Untuk POST/PUT/PATCH/DELETE objek request dikirim sebagai body, bukan query.
+         * Query string yang sudah ada di URL (mis. dari anotasi) tetap dipertahankan.
+         */
         private void cleanNonGet() {
             this.requestObjectForGet = false;
-            this.url = StringUtils.split(url, "?")[0];
         }
 
         private ApiRequest build() {
@@ -266,18 +305,22 @@ public class ApiRequest {
             if (isGet && isNotNullRequest && requestObjectForGet && isNotZero) {
                 throw new ApiRequestInvalidParameterException("cannot combine setRequest(Object request, boolean isGet) for request get and param(String key, String value)");
             }
-            AtomicBoolean first = new AtomicBoolean(false);
-            StringBuilder sb = new StringBuilder(url);
+            // kalau URL sudah punya query string, parameter berikutnya disambung dengan '&'
+            AtomicBoolean first = new AtomicBoolean(Objects.nonNull(url) && url.contains("?"));
+            StringBuilder sb = new StringBuilder(Objects.isNull(url) ? "" : url);
             if (requestObjectForGet && Objects.nonNull(request)) {
                 final List<Field> fields = FieldUtils.getAllFieldsList(request.getClass());
                 for (Field o : fields) {
+                    // field static dan synthetic (mis. this$0, $jacocoData) bukan parameter request
+                    if (Modifier.isStatic(o.getModifiers()) || o.isSynthetic()) continue;
                     try {
                         Field field = FieldUtils.getField(request.getClass(), o.getName(), true);
-                        log.debug("field {} : {}", o.getName(), field);
-                        sb.append(first.get() ? "&" : "?");
-                        sb.append(snakeCaseField ? camelToSnake(o.getName()) : o.getName());
-                        sb.append("=").append(field.get(request));
-                        first.set(true);
+                        Object value = field.get(request);
+                        log.debug("field {} : {}", o.getName(), value);
+                        // field null dilewati, jangan kirim literal "null"
+                        if (Objects.isNull(value)) continue;
+                        String name = snakeCaseField ? camelToSnake(o.getName()) : o.getName();
+                        appendQueryParam(sb, first, name, value);
                     } catch (IllegalAccessException e) {
                         throw new ApiRequestInvalidParameterException(e);
                     }
@@ -287,14 +330,16 @@ public class ApiRequest {
             }
             //
             requestGetTemp.forEach((k, v) -> {
-                if (first.get()) {
-                    sb.append("&").append(k).append("=").append(v);
-                } else {
-                    sb.append("?").append(k).append("=").append(v);
-                }
-                first.set(true);
+                if (Objects.isNull(v)) return;
+                appendQueryParam(sb, first, k, v);
             });
             url = sb.toString();
+        }
+
+        private void appendQueryParam(StringBuilder sb, AtomicBoolean first, String name, Object value) {
+            sb.append(first.get() ? "&" : "?");
+            sb.append(encodeQueryParam(name)).append("=").append(encodeQueryParam(value));
+            first.set(true);
         }
     }
 

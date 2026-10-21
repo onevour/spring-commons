@@ -3,6 +3,7 @@ package com.onevour.core.applications.rest.handler;
 
 import com.onevour.core.applications.commons.ApiRequest;
 import com.onevour.core.applications.commons.ReflectionCommons;
+import com.onevour.core.applications.exceptions.ApiRequestInvalidParameterException;
 import com.onevour.core.applications.exceptions.BadGatewayException;
 import com.onevour.core.applications.rest.annotations.*;
 import com.onevour.core.applications.rest.exceptions.HttpMethodNotFoundException;
@@ -13,10 +14,7 @@ import org.aopalliance.intercept.MethodInvocation;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
-import org.springframework.beans.factory.support.BeanDefinitionBuilder;
-import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.env.Environment;
 import org.springframework.http.*;
@@ -32,14 +30,23 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class RestExecutorMethodHandler implements MethodInterceptor {
 
     private final Logger log = LoggerFactory.getLogger(RestExecutorMethodHandler.class);
 
     private final ConfigurableListableBeanFactory beanFactory;
+
+    /**
+     * RestTemplate per kombinasi timeout (connect/request/read). Dibuat sekali lalu dipakai ulang,
+     * tidak lagi didaftarkan sebagai bean (bean "customRequestFactory" yang namanya tetap memicu
+     * BeanDefinitionOverrideException di Boot 2 saat ada kombinasi timeout kedua).
+     */
+    private final Map<String, RestTemplate> restTemplateCache = new ConcurrentHashMap<>();
 
     public RestExecutorMethodHandler(ConfigurableListableBeanFactory beanFactory) {
         this.beanFactory = beanFactory;
@@ -272,8 +279,12 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
                     if (name.isEmpty() && value.isEmpty()) {
                         throw new NullPointerException("path variable name or value cannot be null");
                     }
-                    String pathKey = "{" + (value.isEmpty() ? name : value) + "}";
-                    url = StringUtils.replace(url, pathKey, String.valueOf(param));
+                    String variable = value.isEmpty() ? name : value;
+                    if (Objects.isNull(param)) {
+                        throw new ApiRequestInvalidParameterException("path variable " + variable + " cannot be null");
+                    }
+                    // nilai di-encode sebagai segmen path (UTF-8): '/', '?', '#', '{', '}' dan spasi aman
+                    url = StringUtils.replace(url, "{" + variable + "}", ApiRequest.encodePathSegment(param));
                     hasPathVariable = true;
                     break;
                 }
@@ -323,17 +334,9 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
             }
         }
 
-        boolean isAllowConfig = connectTimeout + requestTimeout + readTimeout > 3000;
-
-        StringBuilder configString = new StringBuilder("restTemplate");
-        configString.append("CO").append(connectTimeout);
-        configString.append("RT").append(requestTimeout);
-        configString.append("RD").append(readTimeout);
-        String configName = configString.toString();
-
         try {
 
-            RestTemplate restTemplate = restTemplateFactory(isAllowConfig, configName, connectTimeout, requestTimeout, readTimeout);
+            RestTemplate restTemplate = restTemplateFactory(connectTimeout, requestTimeout, readTimeout);
             log.trace("http request {} {}", request.getMethod(), request.getUrl());
             request.validate();
             ResponseEntity<?> response = getResponseEntity(restTemplate, request, typeReference);
@@ -355,7 +358,7 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
             throw e;
         } catch (ResourceAccessException e) {
             if (isThrowResourceAccessException) {
-                throw new BadGatewayException();
+                throw new BadGatewayException("bad gateway: " + e.getMessage(), e);
             }
             if (isRestResultParameterize) return new ResponseWrapper<>(e);
             log.error("resource access exception {}", e.getMessage());
@@ -363,93 +366,68 @@ public class RestExecutorMethodHandler implements MethodInterceptor {
         }
     }
 
-    @SuppressWarnings("rawtypes")
-    private ResponseEntity<?> exchange(RestTemplate restTemplate, ApiRequest request, ParameterizedTypeReference typeReference) {
-        RequestEntity.BodyBuilder requestBuilder = RequestEntity.method(request.getMethod(), request.getUrl());
-        HttpHeaders headers = request.getHeaders();
-
-        if (HttpMethod.GET != request.getMethod() && Objects.nonNull(request.getRequest())) {
-            requestBuilder.body(request.getRequest());
-            if (request.getRequest() instanceof byte[]) {
-                headers.setContentLength(((byte[]) request.getRequest()).length);
-            }
-
-        }
-        requestBuilder.headers(headers);
-        if (Objects.isNull(request.getClassResponse())) {
-            ParameterizedTypeReference<?> ref = Objects.nonNull(typeReference) ? typeReference : request.getParameterizedResponse();
-            return restTemplate.exchange(requestBuilder.build(), ref);
-        }
-        return restTemplate.exchange(requestBuilder.build(), request.getClassResponse());
-    }
-
+    /**
+     * URL dikirim sebagai {@link URI} (bukan String) supaya nilai path/query yang sudah
+     * di-encode di {@link ApiRequest} tidak di-encode ulang oleh RestTemplate.
+     */
     @SuppressWarnings("rawtypes")
     private ResponseEntity<?> getResponseEntity(RestTemplate restTemplate, ApiRequest request, ParameterizedTypeReference typeReference) {
+        URI uri = request.getUri();
         if (HttpMethod.GET == request.getMethod()) {
             if (Objects.isNull(request.getClassResponse())) {
                 ParameterizedTypeReference<?> ref = Objects.nonNull(typeReference) ? typeReference : request.getParameterizedResponse();
-                return restTemplate.exchange(request.getUrl(), HttpMethod.GET, new HttpEntity<>(request.getHeaders()), ref);
+                return restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(request.getHeaders()), ref);
             }
             if (Objects.isNull(request.getParameterizedResponse())) {
-                return restTemplate.exchange(request.getUrl(), HttpMethod.GET, new HttpEntity<>(request.getHeaders()), request.getClassResponse());
+                return restTemplate.exchange(uri, HttpMethod.GET, new HttpEntity<>(request.getHeaders()), request.getClassResponse());
             }
         } else {
             if (Objects.isNull(request.getClassResponse())) {
                 ParameterizedTypeReference<?> ref = Objects.nonNull(typeReference) ? typeReference : request.getParameterizedResponse();
-                return restTemplate.exchange(request.getUrl(), request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), ref);
+                return restTemplate.exchange(uri, request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), ref);
 
             }
             if (Objects.isNull(request.getParameterizedResponse())) {
-                return restTemplate.exchange(request.getUrl(), request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), request.getClassResponse());
+                return restTemplate.exchange(uri, request.getMethod(), new HttpEntity<>(request.getRequest(), request.getHeaders()), request.getClassResponse());
             }
         }
         return null;
     }
 
-    private RestTemplate restTemplateFactory(boolean isAllowConfig, String configName, int connectTimeout, int requestTimeout, int readTimeout) {
-        if (isAllowConfig) {
-            if (checkBeanHasNameAndType(beanFactory, configName, RestTemplate.class)) {
-                return beanFactory.getBean(configName, RestTemplate.class);
-            }
-            BeanDefinitionRegistry registry = (BeanDefinitionRegistry) beanFactory;
-            BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(RestTemplate.class);
-            // Configure a SimpleClientHttpRequestFactory and set it on the RestTemplate
+    /**
+     * Pilih RestTemplate berdasarkan timeout anotasi (milidetik).
+     * <ul>
+     *   <li>semua timeout &lt;= 0 (default anotasi -1): bean {@code restTemplate};</li>
+     *   <li>selain itu: RestTemplate dari cache per kombinasi timeout; nilai dipakai apa adanya
+     *       (tidak ada minimum 12 detik), timeout &lt;= 0 dibiarkan default HttpClient.</li>
+     * </ul>
+     * Converter, interceptor, dan error handler diambil dari bean {@code restTemplate} (bila ada)
+     * supaya perilakunya sama, hanya timeout yang berbeda.
+     */
+    RestTemplate restTemplateFactory(int connectTimeout, int requestTimeout, int readTimeout) {
+        if (connectTimeout <= 0 && requestTimeout <= 0 && readTimeout <= 0) {
+            return baseRestTemplate();
+        }
+        String key = "CO" + connectTimeout + "RT" + requestTimeout + "RD" + readTimeout;
+        return restTemplateCache.computeIfAbsent(key, k -> {
             HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory();
-            requestFactory.setConnectionRequestTimeout(Integer.max(requestTimeout, 12000));     // Set read timeout
-            requestFactory.setConnectTimeout(Integer.max(connectTimeout, 12000));  // Set connect timeout
-            requestFactory.setReadTimeout(Integer.max(readTimeout, 12000));     // Set read timeout
+            if (connectTimeout > 0) requestFactory.setConnectTimeout(connectTimeout);
+            if (requestTimeout > 0) requestFactory.setConnectionRequestTimeout(requestTimeout);
+            if (readTimeout > 0) requestFactory.setReadTimeout(readTimeout);
+            RestTemplate restTemplate = new RestTemplate(requestFactory);
+            if (beanFactory.containsBean("restTemplate")) {
+                RestTemplate base = baseRestTemplate();
+                restTemplate.setMessageConverters(base.getMessageConverters());
+                restTemplate.setInterceptors(base.getInterceptors());
+                restTemplate.setErrorHandler(base.getErrorHandler());
+            }
+            log.debug("create RestTemplate {} connect {} request {} read {}", k, connectTimeout, requestTimeout, readTimeout);
+            return restTemplate;
+        });
+    }
 
-            // Register the request factory bean definition
-            BeanDefinitionBuilder factoryBuilder = BeanDefinitionBuilder.genericBeanDefinition(HttpComponentsClientHttpRequestFactory.class);
-            factoryBuilder.addPropertyValue("connectionRequestTimeout", Integer.max(requestTimeout, 12000));
-            factoryBuilder.addPropertyValue("connectTimeout", Integer.max(connectTimeout, 12000));
-            factoryBuilder.addPropertyValue("readTimeout", Integer.max(readTimeout, 12000));
-            registry.registerBeanDefinition("customRequestFactory", factoryBuilder.getBeanDefinition());
-            // Add properties to RestTemplate BeanDefinition
-            builder.addPropertyReference("requestFactory", "customRequestFactory");
-            // Register the RestTemplate bean definition
-            registry.registerBeanDefinition(configName, builder.getBeanDefinition());
-            return beanFactory.getBean(configName, RestTemplate.class);
-        }
+    private RestTemplate baseRestTemplate() {
         return beanFactory.getBean("restTemplate", RestTemplate.class);
-    }
-
-    private HttpComponentsClientHttpRequestFactory clientFactory(int connectTimeout, int requestTimeout, int readTimeout) {
-        HttpComponentsClientHttpRequestFactory factory = new HttpComponentsClientHttpRequestFactory();
-        if (connectTimeout > 0) factory.setConnectTimeout(connectTimeout);
-        if (requestTimeout > 0) factory.setConnectionRequestTimeout(requestTimeout);
-        if (readTimeout > 0) factory.setReadTimeout(readTimeout);
-        return factory;
-    }
-
-    public boolean checkBeanHasNameAndType(BeanFactory beanFactory, String beanName, Class<?> beanType) {
-        if (beanFactory instanceof ConfigurableListableBeanFactory) {
-            ConfigurableListableBeanFactory configurableBeanFactory = (ConfigurableListableBeanFactory) beanFactory;
-
-            // Check if the bean exists by name and if its type matches
-            return configurableBeanFactory.containsBean(beanName) && configurableBeanFactory.isTypeMatch(beanName, beanType);
-        }
-        return false; // If the beanFactory is not a ConfigurableListableBeanFactory
     }
 
 }
