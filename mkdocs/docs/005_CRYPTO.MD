@@ -40,6 +40,9 @@ String cipherText = aes.encryptToBase64("Test123#$#@4");
 String plainText  = aes.decrypt(cipherText);
 ```
 
+Selalu beri IV untuk CBC. Tanpa IV, enkripsi tetap "berhasil" dengan IV acak dari JCE yang tidak
+tersimpan di mana pun, sehingga hasilnya tidak pernah bisa didekripsi.
+
 ### AES/GCM (tanpa IV di loader)
 
 ```java
@@ -85,7 +88,8 @@ Memanggil `decrypt` tanpa private key akan gagal.
 ### Pesan panjang (block cipher)
 
 RSA hanya bisa mengenkripsi data sepanjang ukuran kunci. Untuk pesan yang lebih panjang
-pakai varian block cipher yang memotong pesan per blok:
+pakai varian block cipher yang memotong pesan per blok. Ukuran blok dekripsi mengikuti ukuran
+kunci (1024, 2048, 4096 bit), dan data yang dienkripsi versi lama dengan kunci 1024 bit tetap bisa dibaca:
 
 ```java
 String hex    = rsa.encryptBlockCipherToString(jsonPanjang);   // keluaran hex

@@ -42,10 +42,10 @@ public class AESKeyFileLoader extends AESCryptoKeyLoader {
         boolean isValidAES128 = keyBytes.length == 16;
         boolean isValidAES192 = keyBytes.length == 24;
         boolean isValidAES256 = keyBytes.length == 32;
-        if (isValidAES128 || isValidAES192 || isValidAES256) {
-            secretKey = new SecretKeySpec(keyBytes, "AES");
+        if (!(isValidAES128 || isValidAES192 || isValidAES256)) {
+            throw new IllegalArgumentException("Invalid AES key length: " + keyBytes.length);
         }
-        throw new IllegalArgumentException("Invalid AES key length: " + keyBytes.length);
+        secretKey = new SecretKeySpec(keyBytes, "AES");
     }
 
 

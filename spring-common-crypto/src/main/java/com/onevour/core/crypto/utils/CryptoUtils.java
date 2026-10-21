@@ -10,15 +10,37 @@ public class CryptoUtils {
 
     }
 
+    /** blok plaintext per operasi enkripsi; cukup untuk semua ukuran kunci RSA >= 1024 bit dengan PKCS#1 */
+    public static final int ENCRYPT_BLOCK_SIZE = 100;
+
+    /** ukuran kunci default (byte) = RSA 1024 bit, perilaku lama */
+    public static final int DEFAULT_KEY_SIZE_BYTES = 128;
+
+    /**
+     * @deprecated blok dekripsi dianggap 128 byte (RSA 1024 bit). Untuk kunci lain pakai
+     * {@link #blockCipher(Cipher, byte[], int, int)} dengan ukuran kunci dalam byte.
+     */
+    @Deprecated
     public static byte[] blockCipher(Cipher cipher, byte[] bytes, int mode) throws IllegalBlockSizeException, BadPaddingException {
+        return blockCipher(cipher, bytes, mode, DEFAULT_KEY_SIZE_BYTES);
+    }
+
+    /**
+     * Enkripsi/dekripsi pesan yang lebih panjang dari ukuran kunci RSA, blok per blok.
+     * Enkripsi memotong plaintext per {@link #ENCRYPT_BLOCK_SIZE} byte; dekripsi memotong
+     * ciphertext per {@code keySizeBytes} (setiap blok hasil RSA selalu sebesar kuncinya).
+     *
+     * @param keySizeBytes ukuran kunci RSA dalam byte (modulus bitLength / 8), mis. 256 untuk 2048 bit
+     */
+    public static byte[] blockCipher(Cipher cipher, byte[] bytes, int mode, int keySizeBytes) throws IllegalBlockSizeException, BadPaddingException {
         // string initialize 2 buffers.
         // scrambled will hold intermediate results
         byte[] scrambled = new byte[0];
 
         // toReturn will hold the total result
         byte[] toReturn = new byte[0];
-        // if we encrypt we use 100 byte long blocks. Decryption requires 128 byte long blocks (because of RSA)
-        int length = (mode == Cipher.ENCRYPT_MODE) ? 100 : 128;
+        // if we encrypt we use 100 byte long blocks. Decryption requires key-size long blocks (because of RSA)
+        int length = (mode == Cipher.ENCRYPT_MODE) ? ENCRYPT_BLOCK_SIZE : keySizeBytes;
 
         // another buffer. this one will hold the bytes that have to be modified in this step
         byte[] buffer = new byte[length];

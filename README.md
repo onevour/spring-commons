@@ -17,6 +17,18 @@ Kumpulan library untuk mempercepat pembuatan service Spring Boot 2.7 (Java 11).
 
 Dokumentasi juga bisa dijalankan sebagai situs: `cd mkdocs && mkdocs serve` (butuh `mkdocs-material`).
 
+## Menjalankan test
+
+```bash
+./gradlew test
+```
+
+Catatan:
+- Gradle 8.13 butuh JDK 11 sampai 23 untuk menjalankan build. Dengan JDK yang lebih baru, set `JAVA_HOME` ke JDK 17.
+- Test library (`spring-common`, `spring-common-jpa`, `spring-common-crypto`) berjalan offline tanpa database, MinIO, atau jaringan.
+- Modul contoh `spring-test` punya satu test yang memanggil pokeapi.co. Lewati dengan `./gradlew test -x :spring-test:test` bila tanpa jaringan.
+- Test audit/history JPA butuh PostgreSQL atau MariaDB nyata dan belum diotomatisasi; jalankan aplikasi `spring-jpa-*-test` secara manual.
+
 ## Pakai lewat JitPack
 
 Library ini dipublikasikan lewat [JitPack](https://jitpack.io) dari repo

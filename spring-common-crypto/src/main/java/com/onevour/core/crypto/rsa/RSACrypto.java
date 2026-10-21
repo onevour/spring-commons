@@ -10,6 +10,8 @@ import org.apache.commons.codec.binary.Hex;
 
 import javax.crypto.Cipher;
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
+import java.security.interfaces.RSAKey;
 import java.util.Base64;
 
 @Slf4j
@@ -48,7 +50,7 @@ public class RSACrypto implements RSACryptoEngine, Crypto {
         Cipher cipher = Cipher.getInstance(transformation);
         cipher.init(Cipher.ENCRYPT_MODE, cryptoKeyAdapter.encryptKey());
         byte[] bytes = message.getBytes(StandardCharsets.UTF_8);
-        return CryptoUtils.blockCipher(cipher, bytes, Cipher.ENCRYPT_MODE);
+        return CryptoUtils.blockCipher(cipher, bytes, Cipher.ENCRYPT_MODE, keySizeBytes(cryptoKeyAdapter.encryptKey()));
     }
 
 
@@ -81,8 +83,16 @@ public class RSACrypto implements RSACryptoEngine, Crypto {
     public String decryptBlockCipher(byte[] bts) throws Exception {
         Cipher cipher = Cipher.getInstance(transformation);
         cipher.init(Cipher.DECRYPT_MODE, cryptoKeyAdapter.decryptKey());
-        byte[] decrypted = CryptoUtils.blockCipher(cipher, bts, Cipher.DECRYPT_MODE);
+        byte[] decrypted = CryptoUtils.blockCipher(cipher, bts, Cipher.DECRYPT_MODE, keySizeBytes(cryptoKeyAdapter.decryptKey()));
         return new String(decrypted, StandardCharsets.UTF_8).trim();
+    }
+
+    /** ukuran kunci RSA dalam byte; fallback 128 (1024 bit) bila kunci bukan RSAKey */
+    static int keySizeBytes(Key key) {
+        if (key instanceof RSAKey) {
+            return ((RSAKey) key).getModulus().bitLength() / 8;
+        }
+        return CryptoUtils.DEFAULT_KEY_SIZE_BYTES;
     }
 
     @Override
